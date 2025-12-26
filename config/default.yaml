@@ -1,0 +1,135 @@
+# =============================================================================
+# Quantitative Trading Research Platform - Configuration
+# =============================================================================
+# IMPORTANT: This is a RESEARCH configuration. Do not use in production
+# without extensive testing and proper risk management review.
+
+# -----------------------------------------------------------------------------
+# Data Configuration
+# -----------------------------------------------------------------------------
+data:
+  # Historical data storage
+  database:
+    type: "timescaledb"  # Options: timescaledb, postgres, sqlite
+    host: "localhost"
+    port: 5432
+    name: "quant_research"
+
+  # Market data
+  market_data:
+    providers: ["polygon", "alpaca", "yahoo"]  # Fallback order
+    cache_enabled: true
+    cache_ttl_seconds: 300
+
+  # Feature engineering
+  features:
+    lookback_window: 60
+    normalize: true
+    handle_missing: "forward_fill"
+
+# -----------------------------------------------------------------------------
+# Model Configuration
+# -----------------------------------------------------------------------------
+models:
+  # LSTM + Attention model
+  temporal_fusion:
+    hidden_dim: 64
+    num_heads: 4
+    num_layers: 2
+    dropout: 0.1
+    forecast_horizons: [1, 5, 21]
+
+  # Reinforcement learning
+  ppo:
+    hidden_dim: 128
+    learning_rate: 0.0003
+    clip_epsilon: 0.2
+    gamma: 0.99
+    gae_lambda: 0.95
+
+# -----------------------------------------------------------------------------
+# Execution Configuration
+# -----------------------------------------------------------------------------
+execution:
+  # Default venue
+  default_venue: "PAPER"  # Paper trading only!
+
+  # Order defaults
+  default_order_type: "LIMIT"
+  max_order_value: 10000
+
+  # Latency
+  max_latency_ms: 100
+
+  # Algorithms
+  twap_slice_interval_sec: 60
+  vwap_participation_rate: 0.10
+
+# -----------------------------------------------------------------------------
+# Risk Management Configuration
+# -----------------------------------------------------------------------------
+risk:
+  # Position limits
+  max_position_value: 10000
+  max_position_pct: 0.10
+  max_gross_exposure: 1.5
+  max_net_exposure: 1.0
+
+  # Loss limits
+  max_daily_loss: 1000
+  max_daily_loss_pct: 0.02
+  max_drawdown: 0.10
+
+  # Rate limits
+  max_orders_per_minute: 30
+  max_orders_per_symbol_minute: 5
+
+# -----------------------------------------------------------------------------
+# Kill Switch Configuration
+# -----------------------------------------------------------------------------
+kill_switch:
+  # CRITICAL - These are last resort limits
+  max_drawdown: 0.15
+  max_daily_loss_pct: 0.05
+  max_rapid_loss_pct: 0.03
+  rapid_loss_window_sec: 300
+
+  # Technical limits
+  max_latency_ms: 1000
+  max_data_age_sec: 30
+  heartbeat_timeout_sec: 10
+
+  # Actions
+  cancel_all_on_trigger: true
+  flatten_on_trigger: true
+  alert_channels: ["log", "email"]
+
+# -----------------------------------------------------------------------------
+# Backtesting Configuration
+# -----------------------------------------------------------------------------
+backtesting:
+  # Simulation parameters
+  initial_capital: 100000
+  transaction_cost_bps: 10
+  slippage_bps: 5
+
+  # Cross-validation
+  n_splits: 5
+  purge_days: 10
+  embargo_days: 5
+
+  # Performance metrics
+  benchmark: "SPY"
+  risk_free_rate: 0.02
+
+# -----------------------------------------------------------------------------
+# Logging Configuration
+# -----------------------------------------------------------------------------
+logging:
+  level: "INFO"
+  format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+
+  # Separate logs
+  trade_log: "logs/trades.log"
+  risk_log: "logs/risk.log"
+  system_log: "logs/system.log"
