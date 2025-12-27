@@ -461,6 +461,107 @@ def api_engine():
         return jsonify({'success': False, 'error': str(e)})
 
 
+@app.route('/api/historical', methods=['POST'])
+@login_required
+def api_historical():
+    """Historical Data Analysis"""
+    try:
+        from datastore.historical import HistoricalDataLoader, TechnicalIndicators, DataAnalyzer
+
+        data = request.json or {}
+        symbol = data.get('symbol', 'AAPL')
+        initial_price = data.get('initial_price', 150.0)
+        volatility = data.get('volatility', 0.02)
+        n_days = data.get('n_days', 252)
+        indicators = data.get('indicators', ['sma', 'rsi', 'bollinger'])
+
+        # Generate synthetic data
+        loader = HistoricalDataLoader()
+        hist_data = loader.generate_synthetic(
+            symbol=symbol,
+            initial_price=initial_price,
+            volatility=volatility,
+            n_days=n_days
+        )
+
+        # Get summary statistics
+        stats = DataAnalyzer.summary_stats(hist_data)
+
+        # Calculate requested indicators
+        closes = hist_data.closes
+        indicator_results = {}
+
+        if 'sma' in indicators:
+            sma_20 = TechnicalIndicators.sma(closes, 20)
+            sma_50 = TechnicalIndicators.sma(closes, 50)
+            indicator_results['sma'] = {
+                'sma_20_latest': round(float(sma_20[-1]), 2) if not np.isnan(sma_20[-1]) else None,
+                'sma_50_latest': round(float(sma_50[-1]), 2) if not np.isnan(sma_50[-1]) else None,
+                'description': 'Simple Moving Average smooths price data to identify trend direction'
+            }
+
+        if 'ema' in indicators:
+            ema_12 = TechnicalIndicators.ema(closes, 12)
+            ema_26 = TechnicalIndicators.ema(closes, 26)
+            indicator_results['ema'] = {
+                'ema_12_latest': round(float(ema_12[-1]), 2) if not np.isnan(ema_12[-1]) else None,
+                'ema_26_latest': round(float(ema_26[-1]), 2) if not np.isnan(ema_26[-1]) else None,
+                'description': 'Exponential Moving Average gives more weight to recent prices'
+            }
+
+        if 'rsi' in indicators:
+            rsi = TechnicalIndicators.rsi(closes, 14)
+            latest_rsi = float(rsi[-1]) if not np.isnan(rsi[-1]) else 50
+            signal = "Overbought (>70)" if latest_rsi > 70 else ("Oversold (<30)" if latest_rsi < 30 else "Neutral")
+            indicator_results['rsi'] = {
+                'value': round(latest_rsi, 2),
+                'signal': signal,
+                'description': 'RSI measures momentum - above 70 is overbought, below 30 is oversold'
+            }
+
+        if 'bollinger' in indicators:
+            upper, middle, lower = TechnicalIndicators.bollinger_bands(closes, 20, 2.0)
+            indicator_results['bollinger'] = {
+                'upper': round(float(upper[-1]), 2) if not np.isnan(upper[-1]) else None,
+                'middle': round(float(middle[-1]), 2) if not np.isnan(middle[-1]) else None,
+                'lower': round(float(lower[-1]), 2) if not np.isnan(lower[-1]) else None,
+                'description': 'Bollinger Bands show volatility - price touching bands may signal reversal'
+            }
+
+        if 'macd' in indicators:
+            macd_line, signal_line, histogram = TechnicalIndicators.macd(closes)
+            indicator_results['macd'] = {
+                'macd': round(float(macd_line[-1]), 4) if not np.isnan(macd_line[-1]) else None,
+                'signal': round(float(signal_line[-1]), 4) if not np.isnan(signal_line[-1]) else None,
+                'histogram': round(float(histogram[-1]), 4) if not np.isnan(histogram[-1]) else None,
+                'description': 'MACD shows trend changes - bullish when MACD crosses above signal'
+            }
+
+        # Get last 10 price data points for chart
+        recent_prices = [
+            {
+                'date': hist_data.bars[i].timestamp.strftime('%Y-%m-%d'),
+                'open': round(hist_data.bars[i].open, 2),
+                'high': round(hist_data.bars[i].high, 2),
+                'low': round(hist_data.bars[i].low, 2),
+                'close': round(hist_data.bars[i].close, 2),
+                'volume': int(hist_data.bars[i].volume)
+            }
+            for i in range(-10, 0)
+        ]
+
+        return jsonify({
+            'success': True,
+            'symbol': symbol,
+            'summary': stats,
+            'indicators': indicator_results,
+            'recent_prices': recent_prices,
+            'explanation': 'Historical data analysis with technical indicators helps identify trends, momentum, and potential entry/exit points.'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 if __name__ == '__main__':
     print("\n" + "="*60)
     print("  QUANTITATIVE TRADING DASHBOARD")

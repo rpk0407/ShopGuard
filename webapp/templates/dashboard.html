@@ -289,7 +289,7 @@
     <main class="main-content">
         <section class="welcome-section">
             <h2>Your Private Trading Infrastructure</h2>
-            <p>This dashboard gives you access to all 9 quantitative trading components. Each tool below explains what it does and lets you run it with your own parameters. Click "Run" to see results.</p>
+            <p>This dashboard gives you access to all 10 quantitative trading components. Each tool below explains what it does and lets you run it with your own parameters. Click "Run" to see results.</p>
         </section>
 
         <div class="component-grid">
@@ -523,6 +523,51 @@ Fed signals rate cuts ahead</textarea>
                     </div>
                     <button class="btn-run" onclick="runEngine()">Initialize Engine</button>
                     <div class="results" id="engine-results"></div>
+                </div>
+            </div>
+
+            <!-- 10. Historical Data Analysis -->
+            <div class="component-card">
+                <div class="card-header">
+                    <h3>10. Historical Data Analysis</h3>
+                    <span class="subtitle">Technical indicators & price statistics</span>
+                </div>
+                <div class="card-body">
+                    <div class="explanation">
+                        <p><strong>What it does:</strong> Loads historical price data and calculates technical indicators (SMA, RSI, Bollinger Bands, MACD). Shows summary statistics like returns, volatility, and Sharpe ratio.</p>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Symbol</label>
+                            <input type="text" id="hist-symbol" value="AAPL">
+                        </div>
+                        <div class="form-group">
+                            <label>Initial Price ($)</label>
+                            <input type="number" id="hist-price" value="150" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>Volatility (%)</label>
+                            <input type="number" id="hist-vol" value="2" step="0.1" min="0.1" max="10">
+                        </div>
+                        <div class="form-group">
+                            <label>Days</label>
+                            <input type="number" id="hist-days" value="252" min="30" max="1000">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 3;">
+                            <label>Indicators</label>
+                            <select id="hist-indicators" multiple style="height: 60px;">
+                                <option value="sma" selected>SMA (Moving Average)</option>
+                                <option value="rsi" selected>RSI (Momentum)</option>
+                                <option value="bollinger" selected>Bollinger Bands</option>
+                                <option value="macd">MACD (Trend)</option>
+                                <option value="ema">EMA (Exp. Moving Avg)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn-run" onclick="runHistorical()">Analyze Historical Data</button>
+                    <div class="results" id="historical-results"></div>
                 </div>
             </div>
         </div>
@@ -821,6 +866,70 @@ ${sentimentHtml}
                 html = `<pre class="error">Error: ${result.error}</pre>`;
             }
             document.getElementById('engine-results').innerHTML = html;
+        }
+
+        async function runHistorical() {
+            showLoading('historical-results');
+            const indicatorSelect = document.getElementById('hist-indicators');
+            const selectedIndicators = Array.from(indicatorSelect.selectedOptions).map(o => o.value);
+
+            const result = await apiCall('/api/historical', {
+                symbol: document.getElementById('hist-symbol').value,
+                initial_price: parseFloat(document.getElementById('hist-price').value),
+                volatility: parseFloat(document.getElementById('hist-vol').value) / 100,
+                n_days: parseInt(document.getElementById('hist-days').value),
+                indicators: selectedIndicators
+            });
+
+            let html = '';
+            if (result.success) {
+                const s = result.summary;
+                const retClass = s.total_return >= 0 ? 'positive' : 'negative';
+
+                let indicatorsHtml = '';
+                if (result.indicators.sma) {
+                    indicatorsHtml += `
+  <span class="label">SMA:</span> 20-day: $${result.indicators.sma.sma_20_latest} | 50-day: $${result.indicators.sma.sma_50_latest}`;
+                }
+                if (result.indicators.rsi) {
+                    const rsiClass = result.indicators.rsi.value > 70 ? 'negative' : (result.indicators.rsi.value < 30 ? 'positive' : 'value');
+                    indicatorsHtml += `
+  <span class="label">RSI:</span> <span class="${rsiClass}">${result.indicators.rsi.value}</span> (${result.indicators.rsi.signal})`;
+                }
+                if (result.indicators.bollinger) {
+                    indicatorsHtml += `
+  <span class="label">Bollinger:</span> Upper: $${result.indicators.bollinger.upper} | Mid: $${result.indicators.bollinger.middle} | Lower: $${result.indicators.bollinger.lower}`;
+                }
+                if (result.indicators.macd) {
+                    indicatorsHtml += `
+  <span class="label">MACD:</span> Line: ${result.indicators.macd.macd} | Signal: ${result.indicators.macd.signal}`;
+                }
+                if (result.indicators.ema) {
+                    indicatorsHtml += `
+  <span class="label">EMA:</span> 12-day: $${result.indicators.ema.ema_12_latest} | 26-day: $${result.indicators.ema.ema_26_latest}`;
+                }
+
+                html = `<pre>
+<span class="label">Summary for ${result.symbol}:</span>
+  Period: ${s.start_date.substring(0, 10)} to ${s.end_date.substring(0, 10)} (${s.n_bars} bars)
+  First Price: <span class="value">$${s.first_price}</span>
+  Last Price: <span class="value">$${s.last_price}</span>
+  Total Return: <span class="${retClass}">${s.total_return}%</span>
+
+<span class="label">Risk Metrics:</span>
+  Annualized Return: <span class="${s.annualized_return >= 0 ? 'positive' : 'negative'}">${s.annualized_return}%</span>
+  Annualized Volatility: <span class="value">${s.annualized_volatility}%</span>
+  Sharpe Ratio: <span class="value">${s.sharpe_ratio}</span>
+  Max Drawdown: <span class="negative">${s.max_drawdown}%</span>
+
+<span class="label">Technical Indicators:</span>${indicatorsHtml}
+
+<span class="label">Insight:</span> ${result.explanation}
+</pre>`;
+            } else {
+                html = `<pre class="error">Error: ${result.error}</pre>`;
+            }
+            document.getElementById('historical-results').innerHTML = html;
         }
     </script>
 </body>

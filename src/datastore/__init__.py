@@ -6,11 +6,19 @@ Database schemas, data pipelines, and storage:
 - Trade/order history
 - Market data caching
 - Feature store
+- Historical data loading and analysis
 """
 
 from .schemas import Trade, Order, Position, MarketData, OHLCV
 from .pipeline import DataPipeline, DataSource, DataSink
 from .store import TimeSeriesStore, FeatureStore
+from .historical import (
+    HistoricalBar,
+    HistoricalData,
+    HistoricalDataLoader,
+    TechnicalIndicators,
+    DataAnalyzer
+)
 
 __all__ = [
     'Trade',
@@ -23,4 +31,9 @@ __all__ = [
     'DataSink',
     'TimeSeriesStore',
     'FeatureStore',
+    'HistoricalBar',
+    'HistoricalData',
+    'HistoricalDataLoader',
+    'TechnicalIndicators',
+    'DataAnalyzer',
 ]
