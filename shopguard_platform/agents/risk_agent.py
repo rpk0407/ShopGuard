@@ -1,0 +1,546 @@
+"""
+Risk Assessment Agent
+=====================
+Evaluates risk levels and provides position sizing recommendations.
+
+Analysis:
+- Volatility assessment
+- Drawdown risk calculation
+- Position sizing using Kelly Criterion
+- Risk/Reward evaluation
+- Portfolio correlation
+- Maximum loss scenarios
+"""
+import math
+from typing import Dict, Any, List, Tuple
+from dataclasses import dataclass
+from .base_agent import BaseAgent, AgentOpinion, Action, Confidence
+
+
+@dataclass
+class RiskMetrics:
+    """Risk metrics for an asset"""
+    volatility: float  # Historical volatility %
+    volatility_percentile: float  # How volatile vs history
+    max_drawdown_potential: float  # Estimated max loss
+    sharpe_estimate: float  # Risk-adjusted return estimate
+    var_95: float  # Value at Risk 95%
+    optimal_position_size: float  # Kelly criterion result
+    risk_level: str  # low, medium, high, extreme
+    correlation_warning: bool
+    liquidation_risk: float
+
+
+class RiskAgent(BaseAgent):
+    """
+    Risk Assessment Agent
+    Evaluates risk and provides position sizing guidance
+    """
+
+    def __init__(self):
+        super().__init__(
+            name="Risk Management Agent",
+            specialty="Risk assessment, position sizing, and portfolio protection"
+        )
+
+        # Risk parameters
+        self.max_position_size = 0.20  # Max 20% of portfolio per position
+        self.max_daily_loss = 0.05  # Max 5% daily loss
+        self.default_stop_loss = 0.03  # 3% default stop loss
+        self.default_take_profit = 0.06  # 6% default take profit
+
+        # Asset volatility profiles (baseline)
+        self.volatility_profiles = {
+            'BTC': {'base_vol': 0.04, 'category': 'crypto'},
+            'ETH': {'base_vol': 0.05, 'category': 'crypto'},
+            'SPY': {'base_vol': 0.01, 'category': 'index'},
+            'QQQ': {'base_vol': 0.015, 'category': 'index'},
+            'NVDA': {'base_vol': 0.03, 'category': 'stock'}
+        }
+
+    def calculate_volatility(self, prices: List[float]) -> Tuple[float, float]:
+        """
+        Calculate historical volatility
+
+        Returns: (volatility, volatility_percentile)
+        """
+        if len(prices) < 10:
+            return 0.02, 50.0
+
+        # Calculate returns
+        returns = [(prices[i] - prices[i-1]) / prices[i-1]
+                  for i in range(1, len(prices))]
+
+        # Standard deviation of returns
+        mean_return = sum(returns) / len(returns)
+        variance = sum((r - mean_return) ** 2 for r in returns) / len(returns)
+        volatility = math.sqrt(variance)
+
+        # Annualized volatility (assuming daily data)
+        annual_vol = volatility * math.sqrt(365)
+
+        # Calculate percentile (how volatile vs typical)
+        # Compare recent volatility to longer-term
+        if len(returns) >= 20:
+            recent_vol = math.sqrt(sum((r - mean_return) ** 2 for r in returns[-10:]) / 10)
+            longer_vol = math.sqrt(sum((r - mean_return) ** 2 for r in returns[:10]) / 10)
+
+            if longer_vol > 0:
+                percentile = min(100, (recent_vol / longer_vol) * 50)
+            else:
+                percentile = 50
+        else:
+            percentile = 50
+
+        return volatility, percentile
+
+    def calculate_var(self, prices: List[float], confidence: float = 0.95) -> float:
+        """
+        Calculate Value at Risk (VaR)
+
+        VaR answers: "What's the maximum loss at X% confidence?"
+        95% VaR = The loss level that won't be exceeded 95% of the time
+        """
+        if len(prices) < 20:
+            return 0.05  # Default 5%
+
+        # Calculate returns
+        returns = [(prices[i] - prices[i-1]) / prices[i-1]
+                  for i in range(1, len(prices))]
+
+        # Sort returns (worst to best)
+        sorted_returns = sorted(returns)
+
+        # Find the return at the confidence percentile
+        index = int(len(sorted_returns) * (1 - confidence))
+        var = abs(sorted_returns[index]) if index < len(sorted_returns) else abs(sorted_returns[0])
+
+        return var
+
+    def calculate_max_drawdown(self, prices: List[float]) -> float:
+        """
+        Calculate maximum drawdown from price history
+
+        Max Drawdown = Largest peak-to-trough decline
+        """
+        if len(prices) < 2:
+            return 0.10  # Default 10%
+
+        peak = prices[0]
+        max_dd = 0
+
+        for price in prices:
+            if price > peak:
+                peak = price
+            else:
+                drawdown = (peak - price) / peak
+                max_dd = max(max_dd, drawdown)
+
+        return max_dd
+
+    def kelly_criterion(self, win_rate: float, win_loss_ratio: float) -> float:
+        """
+        Calculate optimal position size using Kelly Criterion
+
+        Kelly % = W - [(1-W) / R]
+        Where:
+        W = Win probability
+        R = Win/Loss ratio
+
+        Returns fraction of capital to risk
+        """
+        if win_loss_ratio <= 0:
+            return 0
+
+        kelly = win_rate - ((1 - win_rate) / win_loss_ratio)
+
+        # Use half-Kelly for safety
+        half_kelly = kelly / 2
+
+        # Cap at maximum position size
+        return max(0, min(self.max_position_size, half_kelly))
+
+    def calculate_position_size(self, capital: float, risk_per_trade: float,
+                                 stop_loss_pct: float, price: float) -> Dict:
+        """
+        Calculate appropriate position size
+
+        Position Size = (Capital × Risk%) / Stop Loss Distance
+        """
+        risk_amount = capital * risk_per_trade
+        stop_loss_distance = price * stop_loss_pct
+
+        if stop_loss_distance == 0:
+            return {"shares": 0, "value": 0, "risk": 0}
+
+        shares = risk_amount / stop_loss_distance
+        position_value = shares * price
+
+        # Cap at max position size
+        max_value = capital * self.max_position_size
+        if position_value > max_value:
+            position_value = max_value
+            shares = position_value / price
+
+        return {
+            "shares": round(shares, 4),
+            "value": round(position_value, 2),
+            "risk": round(risk_amount, 2),
+            "pct_of_portfolio": round(position_value / capital * 100, 1)
+        }
+
+    def assess_risk_level(self, volatility: float, var: float, max_dd: float) -> str:
+        """Categorize overall risk level"""
+
+        risk_score = 0
+
+        # Volatility contribution
+        if volatility > 0.05:
+            risk_score += 3
+        elif volatility > 0.03:
+            risk_score += 2
+        elif volatility > 0.02:
+            risk_score += 1
+
+        # VaR contribution
+        if var > 0.08:
+            risk_score += 3
+        elif var > 0.05:
+            risk_score += 2
+        elif var > 0.03:
+            risk_score += 1
+
+        # Drawdown contribution
+        if max_dd > 0.20:
+            risk_score += 3
+        elif max_dd > 0.10:
+            risk_score += 2
+        elif max_dd > 0.05:
+            risk_score += 1
+
+        if risk_score >= 7:
+            return "EXTREME"
+        elif risk_score >= 5:
+            return "HIGH"
+        elif risk_score >= 3:
+            return "MEDIUM"
+        else:
+            return "LOW"
+
+    def analyze(self, asset: str, data: Dict[str, Any]) -> AgentOpinion:
+        """Perform comprehensive risk assessment"""
+
+        current_price = data.get('price', 0)
+        prices = data.get('price_history', [current_price] * 50)
+        capital = data.get('capital', 100)
+        current_positions = data.get('positions', [])
+
+        # Calculate risk metrics
+        volatility, vol_percentile = self.calculate_volatility(prices)
+        var_95 = self.calculate_var(prices)
+        max_dd = self.calculate_max_drawdown(prices)
+
+        # Risk level
+        risk_level = self.assess_risk_level(volatility, var_95, max_dd)
+
+        # Position sizing
+        # Estimate win rate based on other agents (default 55%)
+        estimated_win_rate = data.get('estimated_win_rate', 0.55)
+        win_loss_ratio = self.default_take_profit / self.default_stop_loss  # 2:1
+
+        kelly = self.kelly_criterion(estimated_win_rate, win_loss_ratio)
+
+        position_sizing = self.calculate_position_size(
+            capital=capital,
+            risk_per_trade=kelly * 0.5,  # Conservative
+            stop_loss_pct=self.default_stop_loss,
+            price=current_price
+        )
+
+        # Check correlation with existing positions
+        correlation_warning = False
+        if current_positions:
+            crypto_count = sum(1 for p in current_positions if p.get('asset') in ['BTC', 'ETH'])
+            stock_count = len(current_positions) - crypto_count
+
+            if asset in ['BTC', 'ETH'] and crypto_count >= 2:
+                correlation_warning = True
+            if asset in ['SPY', 'QQQ', 'NVDA'] and stock_count >= 2:
+                correlation_warning = True
+
+        # Generate action based on risk
+        action, confidence = self._generate_recommendation(
+            risk_level, volatility, vol_percentile, position_sizing, correlation_warning
+        )
+
+        # Key factors
+        key_factors = [
+            f"Risk Level: {risk_level}",
+            f"Daily Volatility: {volatility:.1%} (percentile: {vol_percentile:.0f})",
+            f"Value at Risk (95%): {var_95:.1%} - Could lose this much 5% of days",
+            f"Max Drawdown Risk: {max_dd:.1%}",
+            f"Recommended Position: ${position_sizing['value']:.2f} ({position_sizing['pct_of_portfolio']:.0f}% of portfolio)",
+            f"Kelly Optimal Sizing: {kelly:.1%} of portfolio"
+        ]
+
+        if correlation_warning:
+            key_factors.append("⚠️ Correlation Warning: Similar positions already held")
+
+        # Reasoning
+        reasoning = self._build_reasoning(risk_level, volatility, var_95, position_sizing, correlation_warning)
+
+        # Warnings
+        warnings = []
+        if risk_level == "EXTREME":
+            warnings.append("EXTREME RISK: Consider reducing position size by 50%")
+        if risk_level == "HIGH":
+            warnings.append("HIGH RISK: Use tight stops and smaller positions")
+        if vol_percentile > 80:
+            warnings.append(f"Volatility is elevated ({vol_percentile:.0f} percentile)")
+        if max_dd > 0.15:
+            warnings.append(f"Asset has shown {max_dd:.0%} drawdowns historically")
+        if correlation_warning:
+            warnings.append("Portfolio may be overexposed to this sector")
+
+        # Hold time based on risk
+        if risk_level == "EXTREME":
+            hold_time = "1-4 hours max (high risk environment)"
+        elif risk_level == "HIGH":
+            hold_time = "4-8 hours (monitor closely)"
+        elif risk_level == "MEDIUM":
+            hold_time = "8-24 hours (standard swing trade)"
+        else:
+            hold_time = "1-3 days (low risk, can hold longer)"
+
+        # Entry timing
+        if action == Action.BUY:
+            entry_timing = f"Safe to enter with ${position_sizing['value']:.2f} position"
+        elif action == Action.HOLD:
+            entry_timing = "Risk is elevated - wait for volatility to decrease"
+        else:
+            entry_timing = "Risk too high - avoid or use minimal position"
+
+        return AgentOpinion(
+            agent_name=self.name,
+            asset=asset,
+            action=action,
+            confidence=confidence,
+            reasoning=reasoning,
+            key_factors=key_factors,
+            suggested_hold_time=hold_time,
+            entry_timing=entry_timing,
+            entry_price=current_price,
+            stop_loss_price=current_price * (1 - self.default_stop_loss),
+            target_price=current_price * (1 + self.default_take_profit),
+            risk_reward_ratio=win_loss_ratio,
+            win_probability=estimated_win_rate,
+            indicators={
+                "volatility": volatility,
+                "volatility_percentile": vol_percentile,
+                "var_95": var_95,
+                "max_drawdown": max_dd,
+                "risk_level": risk_level,
+                "kelly_optimal": kelly,
+                "position_sizing": position_sizing,
+                "correlation_warning": correlation_warning,
+                "stop_loss_pct": self.default_stop_loss,
+                "take_profit_pct": self.default_take_profit
+            },
+            warnings=warnings
+        )
+
+    def _generate_recommendation(self, risk_level: str, volatility: float,
+                                  vol_percentile: float, position: Dict,
+                                  correlation_warning: bool) -> Tuple[Action, Confidence]:
+        """Generate recommendation based on risk"""
+
+        if risk_level == "EXTREME":
+            return Action.SELL, Confidence.HIGH
+        elif risk_level == "HIGH":
+            if correlation_warning:
+                return Action.HOLD, Confidence.MEDIUM
+            return Action.HOLD, Confidence.LOW
+        elif risk_level == "MEDIUM":
+            if vol_percentile > 70:
+                return Action.HOLD, Confidence.LOW
+            return Action.BUY, Confidence.LOW
+        else:
+            return Action.BUY, Confidence.MEDIUM
+
+    def _build_reasoning(self, risk_level: str, volatility: float, var: float,
+                         position: Dict, correlation: bool) -> str:
+        """Build risk assessment reasoning"""
+
+        reasoning = f"Risk assessment shows {risk_level} risk environment. "
+        reasoning += f"Daily volatility is {volatility:.1%}, meaning typical daily moves of ±{volatility*100:.1f}%. "
+        reasoning += f"With 95% confidence, daily loss should not exceed {var:.1%}. "
+
+        if risk_level in ["EXTREME", "HIGH"]:
+            reasoning += "Given elevated risk, position sizing should be reduced. "
+        elif risk_level == "LOW":
+            reasoning += "Favorable risk conditions allow for standard position sizing. "
+
+        reasoning += f"Recommended position size is ${position['value']:.2f} ({position['pct_of_portfolio']:.0f}% of portfolio) with ${position['risk']:.2f} at risk. "
+
+        if correlation:
+            reasoning += "⚠️ Note: You already have correlated positions. Consider diversifying. "
+
+        return reasoning
+
+    def get_teaching_content(self) -> Dict[str, Any]:
+        """Educational content about risk management"""
+        return {
+            "name": self.name,
+            "specialty": self.specialty,
+            "lessons": [
+                {
+                    "title": "Position Sizing: The Most Important Skill",
+                    "content": """
+Position sizing determines how much of your capital to risk on each trade.
+It's MORE IMPORTANT than your entry strategy.
+
+THE 1-2% RULE:
+Never risk more than 1-2% of your portfolio on a single trade.
+
+CALCULATION:
+Position Size = (Account Risk) / (Trade Risk)
+
+Example with $100 portfolio:
+- Risk 2% = $2 max loss per trade
+- Stop loss at 3% below entry
+- Position Size = $2 / 0.03 = $66.67 max position
+
+WHY THIS MATTERS:
+- 10 consecutive losses at 2% = 18% drawdown (recoverable)
+- 10 consecutive losses at 10% = 65% drawdown (devastating)
+
+KELLY CRITERION:
+Optimal bet size = Win% - (Loss% / Win-Loss Ratio)
+But use HALF-KELLY for safety!
+"""
+                },
+                {
+                    "title": "Understanding Volatility",
+                    "content": """
+Volatility measures how much price moves over time.
+
+HIGH VOLATILITY ASSETS (e.g., BTC, ETH):
+- Can move 5-10% in a day
+- Larger stop losses needed
+- Smaller position sizes required
+- Higher profit potential but higher risk
+
+LOW VOLATILITY ASSETS (e.g., SPY):
+- Typically move 0.5-2% daily
+- Tighter stops possible
+- Larger positions acceptable
+- Lower risk, lower reward
+
+VOLATILITY INDICATORS:
+1. ATR (Average True Range) - Average daily movement
+2. Bollinger Band Width - Relative volatility
+3. VIX - Market fear gauge
+
+TRADING VOLATILITY:
+- High vol = reduce size, widen stops
+- Low vol = increase size, tighten stops
+- Volatility clusters - high vol follows high vol
+"""
+                },
+                {
+                    "title": "Risk/Reward Ratio",
+                    "content": """
+Risk/Reward ratio compares potential profit to potential loss.
+
+CALCULATION:
+R:R = (Target Price - Entry) / (Entry - Stop Loss)
+
+EXAMPLE:
+Entry: $100
+Stop: $97 (risking $3)
+Target: $109 (potential gain $9)
+R:R = 9/3 = 3:1
+
+MINIMUM RATIOS:
+- Scalping: 1:1 (need 60%+ win rate)
+- Swing trading: 2:1 (need 40%+ win rate)
+- Position trading: 3:1+ (can profit with 30% wins)
+
+THE MATH:
+With 2:1 R:R and 40% win rate:
+10 trades: 4 wins × $2 = $8, 6 losses × $1 = $6
+Net: +$2 profit despite losing 60% of trades!
+
+RULE: Never take trades with less than 1.5:1 R:R
+"""
+                },
+                {
+                    "title": "Stop Losses and Take Profits",
+                    "content": """
+Stop losses and take profits are your safety nets.
+
+STOP LOSS TYPES:
+1. Fixed Percentage (e.g., 3% below entry)
+   - Simple, consistent
+   - May be too tight in volatile markets
+
+2. ATR-Based (e.g., 2× ATR below entry)
+   - Adapts to volatility
+   - Gives trades room to breathe
+
+3. Support/Resistance Based
+   - Place below key support levels
+   - More likely to hold if placed correctly
+
+TAKE PROFIT STRATEGIES:
+1. Fixed Multiple (e.g., 2× your risk)
+   - Simple, maintains R:R
+
+2. Scaling Out
+   - Take 50% at 1:1
+   - Take 25% at 2:1
+   - Let 25% run with trailing stop
+
+3. Resistance-Based
+   - Target known resistance levels
+
+GOLDEN RULES:
+✓ Always set stop BEFORE entering trade
+✓ Never move stop further away
+✓ Let winners run, cut losers short
+✓ Use position sizing to control risk
+"""
+                },
+                {
+                    "title": "Managing Drawdowns",
+                    "content": """
+Drawdowns are peak-to-trough declines in your portfolio.
+
+DRAWDOWN MATH:
+-10% drawdown needs +11% to recover
+-25% drawdown needs +33% to recover
+-50% drawdown needs +100% to recover
+-75% drawdown needs +300% to recover
+
+This is why AVOIDING large losses is crucial!
+
+MAX DRAWDOWN LIMITS:
+- Conservative: 10% max drawdown
+- Moderate: 15-20% max drawdown
+- Aggressive: 25% max drawdown
+
+DRAWDOWN RULES:
+1. Daily loss limit: Stop trading if down 3-5% in one day
+2. Weekly loss limit: Reduce size if down 5-10% in week
+3. Monthly loss limit: Take break if down 15%+ in month
+
+RECOVERY PROTOCOL:
+After significant drawdown:
+1. Cut position sizes in half
+2. Only take highest-confidence setups
+3. Slowly increase size as you recover
+4. Never revenge trade!
+"""
+                }
+            ]
+        }

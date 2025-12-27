@@ -70,16 +70,33 @@ def show_system_info():
   Social:      Reddit (r/wallstreetbets, r/stocks, r/cryptocurrency)
   Technical:   RSI, Moving Averages, Bollinger Bands, Momentum
 
-{Colors.BOLD}FEATURES:{Colors.END}
-  - Real-time market data (no API keys needed)
-  - AI-powered trading signals
-  - News sentiment analysis
-  - Social media sentiment (Reddit)
-  - Technical analysis
-  - Auto-trading with SL/TP
-  - Portfolio management
-  - Trade history & analytics
-  - SQLite database persistence
+{Colors.BOLD}CORE FEATURES:{Colors.END}
+  ✓ Real-time market data (no API keys needed)
+  ✓ AI-powered trading signals
+  ✓ Auto-trading with SL/TP
+  ✓ Portfolio management
+  ✓ Trade history & analytics
+
+{Colors.BOLD}ADVANCED FEATURES (NEW!):{Colors.END}
+  🧠 Multi-Agent Deep Analysis System
+     • Technical Agent: RSI, MACD, Bollinger Bands, Fibonacci, Patterns
+     • News Agent: Deep research, sentiment scoring, impact assessment
+     • Social Agent: Reddit sentiment, FOMO/FUD detection, contrarian signals
+     • Risk Agent: Position sizing, volatility analysis, Kelly Criterion
+     • Fundamental Agent: Market cap, volume, supply dynamics
+
+  💡 Opportunity Detection
+     • Automated opportunity scanning
+     • Full explanations of WHY to trade
+     • Entry zones, targets, and hold times
+     • Risk/reward analysis
+
+  📚 Complete Trading Education
+     • Trading basics to advanced strategies
+     • Technical analysis lessons
+     • Risk management training
+     • Trading psychology
+     • Crypto-specific education
 """)
 
 def run_platform():

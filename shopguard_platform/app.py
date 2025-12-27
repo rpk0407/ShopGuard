@@ -11,6 +11,9 @@ from flask import Flask, render_template_string, jsonify, request
 
 from .database import db
 from .engine import engine, SignalType
+from .agents.coordinator import coordinator
+from .education.teacher import teacher, LessonCategory
+from .analysis.opportunity import detector, OpportunityType
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -361,6 +364,9 @@ MAIN_TEMPLATE = '''
         <div class="logo">🏦 ShopGuard</div>
         <div class="nav-item active" data-page="dashboard">📊 Dashboard</div>
         <div class="nav-item" data-page="signals">🎯 Signals</div>
+        <div class="nav-item" data-page="analysis">🧠 Deep Analysis</div>
+        <div class="nav-item" data-page="opportunities">💡 Opportunities</div>
+        <div class="nav-item" data-page="learn">📚 Learn</div>
         <div class="nav-item" data-page="portfolio">💰 Portfolio</div>
         <div class="nav-item" data-page="trades">📜 Trades</div>
         <div class="nav-item" data-page="settings">⚙️ Settings</div>
@@ -597,6 +603,157 @@ MAIN_TEMPLATE = '''
                 <div id="alertsList">
                     <p style="color:var(--text-secondary);">No alerts</p>
                 </div>
+            </div>
+        </div>
+
+        <!-- Deep Analysis Page -->
+        <div id="page-analysis" class="page">
+            <div class="header">
+                <h1>🧠 Deep Analysis</h1>
+                <div class="header-actions">
+                    <select id="analysisAsset" style="padding:10px;background:var(--bg-card);border:1px solid var(--border);color:white;border-radius:6px;">
+                        <option value="BTC">Bitcoin (BTC)</option>
+                        <option value="ETH">Ethereum (ETH)</option>
+                        <option value="SPY">S&P 500 (SPY)</option>
+                        <option value="QQQ">NASDAQ (QQQ)</option>
+                        <option value="NVDA">NVIDIA (NVDA)</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="runDeepAnalysis()">🔬 Run Deep Analysis</button>
+                </div>
+            </div>
+
+            <div id="analysisLoading" style="display:none;text-align:center;padding:40px;">
+                <p style="font-size:1.2em;">🔄 Running multi-agent analysis...</p>
+                <p style="color:var(--text-secondary);" id="analysisStatus">Initializing agents...</p>
+            </div>
+
+            <div id="analysisResults" style="display:none;">
+                <!-- Summary Card -->
+                <div class="card" style="margin-bottom:20px;border-left:4px solid var(--accent);">
+                    <h3 id="analysisTitle" style="margin-bottom:15px;">Analysis Results</h3>
+                    <div id="analysisSummary" style="font-size:1.1em;line-height:1.6;"></div>
+                    <div style="margin-top:20px;display:flex;gap:20px;flex-wrap:wrap;">
+                        <div style="background:var(--bg-secondary);padding:15px;border-radius:8px;min-width:150px;">
+                            <div style="color:var(--text-secondary);font-size:0.85em;">Recommendation</div>
+                            <div id="analysisAction" style="font-size:1.5em;font-weight:bold;margin-top:5px;">-</div>
+                        </div>
+                        <div style="background:var(--bg-secondary);padding:15px;border-radius:8px;min-width:150px;">
+                            <div style="color:var(--text-secondary);font-size:0.85em;">Confidence</div>
+                            <div id="analysisConfidence" style="font-size:1.5em;font-weight:bold;margin-top:5px;">-</div>
+                        </div>
+                        <div style="background:var(--bg-secondary);padding:15px;border-radius:8px;min-width:150px;">
+                            <div style="color:var(--text-secondary);font-size:0.85em;">Consensus</div>
+                            <div id="analysisConsensus" style="font-size:1.5em;font-weight:bold;margin-top:5px;">-</div>
+                        </div>
+                        <div style="background:var(--bg-secondary);padding:15px;border-radius:8px;min-width:150px;">
+                            <div style="color:var(--text-secondary);font-size:0.85em;">Hold Time</div>
+                            <div id="analysisHoldTime" style="font-size:1em;margin-top:5px;">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Key Reasons -->
+                <div class="card" style="margin-bottom:20px;">
+                    <h4 style="margin-bottom:15px;">📋 Key Reasons</h4>
+                    <ul id="analysisReasons" style="list-style:none;padding:0;"></ul>
+                </div>
+
+                <!-- Trade Setup -->
+                <div class="grid">
+                    <div class="card">
+                        <h4 style="margin-bottom:15px;">💡 Opportunity</h4>
+                        <p id="analysisOpportunity" style="color:var(--success);"></p>
+                    </div>
+                    <div class="card">
+                        <h4 style="margin-bottom:15px;">⚠️ Primary Risk</h4>
+                        <p id="analysisRisk" style="color:var(--danger);"></p>
+                    </div>
+                </div>
+
+                <!-- Agent Opinions -->
+                <div class="card" style="margin-top:20px;">
+                    <h4 style="margin-bottom:15px;">🤖 Agent Opinions</h4>
+                    <div id="agentOpinions" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:15px;"></div>
+                </div>
+
+                <!-- Learning Points -->
+                <div class="card" style="margin-top:20px;background:linear-gradient(135deg, var(--bg-card), #1e1e35);">
+                    <h4 style="margin-bottom:15px;">📚 What You Can Learn From This</h4>
+                    <ul id="analysisLearning" style="list-style:none;padding:0;"></ul>
+                </div>
+
+                <!-- Warnings -->
+                <div class="card" style="margin-top:20px;border-left:4px solid var(--warning);">
+                    <h4 style="margin-bottom:15px;">⚠️ Warnings</h4>
+                    <ul id="analysisWarnings" style="list-style:none;padding:0;"></ul>
+                </div>
+            </div>
+
+            <div id="analysisEmpty" class="card" style="text-align:center;padding:40px;">
+                <p style="font-size:1.2em;">Select an asset and click "Run Deep Analysis"</p>
+                <p style="color:var(--text-secondary);margin-top:10px;">The multi-agent system will analyze technical, fundamental, news, and social data</p>
+            </div>
+        </div>
+
+        <!-- Opportunities Page -->
+        <div id="page-opportunities" class="page">
+            <div class="header">
+                <h1>💡 Trading Opportunities</h1>
+                <button class="btn btn-primary" onclick="scanOpportunities()">🔍 Scan All Assets</button>
+            </div>
+
+            <div id="opportunitiesLoading" style="display:none;text-align:center;padding:40px;">
+                <p style="font-size:1.2em;">🔄 Scanning for opportunities...</p>
+            </div>
+
+            <div id="opportunitiesList"></div>
+
+            <div id="opportunitiesEmpty" class="card" style="text-align:center;padding:40px;">
+                <p style="font-size:1.2em;">Click "Scan All Assets" to find opportunities</p>
+                <p style="color:var(--text-secondary);margin-top:10px;">The system will analyze all assets and explain each opportunity in detail</p>
+            </div>
+        </div>
+
+        <!-- Learn Page -->
+        <div id="page-learn" class="page">
+            <div class="header">
+                <h1>📚 Trading Education</h1>
+            </div>
+
+            <div class="grid">
+                <div class="card" onclick="showLessonCategory('basics')" style="cursor:pointer;">
+                    <h3>📖 Trading Basics</h3>
+                    <p style="color:var(--text-secondary);margin-top:10px;">What is trading, order types, getting started</p>
+                </div>
+                <div class="card" onclick="showLessonCategory('technical')" style="cursor:pointer;">
+                    <h3>📊 Technical Analysis</h3>
+                    <p style="color:var(--text-secondary);margin-top:10px;">Charts, indicators, patterns, and more</p>
+                </div>
+                <div class="card" onclick="showLessonCategory('fundamental')" style="cursor:pointer;">
+                    <h3>📈 Fundamental Analysis</h3>
+                    <p style="color:var(--text-secondary);margin-top:10px;">Value, metrics, and what drives prices</p>
+                </div>
+                <div class="card" onclick="showLessonCategory('risk')" style="cursor:pointer;">
+                    <h3>⚖️ Risk Management</h3>
+                    <p style="color:var(--text-secondary);margin-top:10px;">Position sizing, stop losses, protecting capital</p>
+                </div>
+                <div class="card" onclick="showLessonCategory('psychology')" style="cursor:pointer;">
+                    <h3>🧠 Trading Psychology</h3>
+                    <p style="color:var(--text-secondary);margin-top:10px;">Emotions, discipline, mindset</p>
+                </div>
+                <div class="card" onclick="showLessonCategory('crypto')" style="cursor:pointer;">
+                    <h3>₿ Crypto Trading</h3>
+                    <p style="color:var(--text-secondary);margin-top:10px;">Crypto-specific knowledge and strategies</p>
+                </div>
+                <div class="card" onclick="showLessonCategory('strategies')" style="cursor:pointer;">
+                    <h3>🎯 Trading Strategies</h3>
+                    <p style="color:var(--text-secondary);margin-top:10px;">Complete strategies you can use</p>
+                </div>
+            </div>
+
+            <div id="lessonContent" class="card" style="margin-top:20px;display:none;">
+                <button class="btn btn-outline" onclick="hideLessonContent()" style="margin-bottom:15px;">← Back to Categories</button>
+                <div id="lessonText" style="line-height:1.8;white-space:pre-wrap;"></div>
             </div>
         </div>
     </main>
@@ -893,6 +1050,151 @@ MAIN_TEMPLATE = '''
             loadAlerts();
         }
 
+        // Deep Analysis
+        async function runDeepAnalysis() {
+            const asset = document.getElementById('analysisAsset').value;
+            document.getElementById('analysisEmpty').style.display = 'none';
+            document.getElementById('analysisResults').style.display = 'none';
+            document.getElementById('analysisLoading').style.display = 'block';
+
+            try {
+                const data = await api(`deep-analysis/${asset}`, 'POST');
+                if (data.success) {
+                    displayAnalysis(data.analysis);
+                } else {
+                    alert('Analysis failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+
+            document.getElementById('analysisLoading').style.display = 'none';
+        }
+
+        function displayAnalysis(a) {
+            document.getElementById('analysisResults').style.display = 'block';
+            document.getElementById('analysisTitle').textContent = `${a.asset} Deep Analysis`;
+            document.getElementById('analysisSummary').textContent = a.summary;
+
+            const actionEl = document.getElementById('analysisAction');
+            actionEl.textContent = a.action;
+            actionEl.className = a.action.includes('BUY') ? 'positive' : a.action.includes('SELL') ? 'negative' : '';
+
+            document.getElementById('analysisConfidence').textContent = a.confidence;
+            document.getElementById('analysisConsensus').textContent = `${(a.consensus_level * 100).toFixed(0)}%`;
+            document.getElementById('analysisHoldTime').textContent = a.suggested_hold_time;
+
+            // Reasons
+            const reasonsEl = document.getElementById('analysisReasons');
+            reasonsEl.innerHTML = a.key_reasons.map(r => `<li style="padding:8px 0;border-bottom:1px solid var(--border);">${r}</li>`).join('');
+
+            // Opportunity and Risk
+            document.getElementById('analysisOpportunity').textContent = a.primary_opportunity;
+            document.getElementById('analysisRisk').textContent = a.primary_risk;
+
+            // Agent Opinions
+            const agentsEl = document.getElementById('agentOpinions');
+            agentsEl.innerHTML = '';
+            for (const [name, opinion] of Object.entries(a.agent_opinions)) {
+                const actionClass = opinion.action.includes('BUY') ? 'positive' : opinion.action.includes('SELL') ? 'negative' : '';
+                agentsEl.innerHTML += `
+                    <div style="background:var(--bg-secondary);padding:15px;border-radius:8px;">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                            <strong>${opinion.agent}</strong>
+                            <span class="${actionClass}">${opinion.action}</span>
+                        </div>
+                        <p style="color:var(--text-secondary);font-size:0.9em;">${opinion.reasoning.substring(0, 200)}...</p>
+                        <div style="margin-top:10px;font-size:0.85em;color:var(--text-secondary);">
+                            Confidence: ${opinion.confidence} | Hold: ${opinion.suggested_hold_time}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Learning Points
+            const learningEl = document.getElementById('analysisLearning');
+            learningEl.innerHTML = a.learning_points.map(l => `<li style="padding:8px 0;border-bottom:1px solid var(--border);">${l}</li>`).join('');
+
+            // Warnings
+            const warningsEl = document.getElementById('analysisWarnings');
+            warningsEl.innerHTML = a.warnings.map(w => `<li style="padding:8px 0;color:var(--warning);">${w}</li>`).join('');
+        }
+
+        // Opportunities
+        async function scanOpportunities() {
+            document.getElementById('opportunitiesEmpty').style.display = 'none';
+            document.getElementById('opportunitiesLoading').style.display = 'block';
+            document.getElementById('opportunitiesList').innerHTML = '';
+
+            const data = await api('opportunities', 'POST');
+
+            document.getElementById('opportunitiesLoading').style.display = 'none';
+
+            if (data.success && data.opportunities.length > 0) {
+                const list = document.getElementById('opportunitiesList');
+                list.innerHTML = data.opportunities.map(o => `
+                    <div class="card" style="margin-bottom:20px;border-left:4px solid ${o.direction === 'LONG' ? 'var(--success)' : 'var(--danger)'};">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                            <h3>${o.asset} - ${o.headline}</h3>
+                            <span class="signal-badge ${o.direction === 'LONG' ? 'signal-buy' : 'signal-sell'}">${o.direction}</span>
+                        </div>
+                        <div style="background:var(--bg-secondary);padding:15px;border-radius:8px;margin-bottom:15px;">
+                            <strong>Why Now:</strong> ${o.why_now}
+                        </div>
+                        <p style="margin-bottom:15px;">${o.full_explanation.substring(0, 500)}...</p>
+                        <div class="grid" style="margin-bottom:15px;">
+                            <div style="background:var(--bg-secondary);padding:10px;border-radius:6px;">
+                                <div style="color:var(--text-secondary);font-size:0.8em;">Entry Zone</div>
+                                <div>${o.entry_zone}</div>
+                            </div>
+                            <div style="background:var(--bg-secondary);padding:10px;border-radius:6px;">
+                                <div style="color:var(--text-secondary);font-size:0.8em;">Stop Loss</div>
+                                <div style="color:var(--danger);">${o.stop_loss}</div>
+                            </div>
+                            <div style="background:var(--bg-secondary);padding:10px;border-radius:6px;">
+                                <div style="color:var(--text-secondary);font-size:0.8em;">Target 1</div>
+                                <div style="color:var(--success);">${o.target_1}</div>
+                            </div>
+                            <div style="background:var(--bg-secondary);padding:10px;border-radius:6px;">
+                                <div style="color:var(--text-secondary);font-size:0.8em;">Max Hold</div>
+                                <div>${o.max_hold_time}</div>
+                            </div>
+                        </div>
+                        <details>
+                            <summary style="cursor:pointer;color:var(--accent);">📚 Learn from this trade</summary>
+                            <div style="padding:15px;background:var(--bg-secondary);margin-top:10px;border-radius:6px;white-space:pre-wrap;">${o.lesson}</div>
+                        </details>
+                    </div>
+                `).join('');
+            } else {
+                document.getElementById('opportunitiesEmpty').style.display = 'block';
+                document.getElementById('opportunitiesEmpty').innerHTML = '<p style="color:var(--text-secondary);">No clear opportunities found right now. Market conditions may be mixed.</p>';
+            }
+        }
+
+        // Education
+        async function showLessonCategory(category) {
+            const data = await api(`education/${category}`);
+            if (data.success && data.lessons.length > 0) {
+                document.getElementById('lessonContent').style.display = 'block';
+                let html = '<h2>' + category.toUpperCase() + ' LESSONS</h2><br>';
+                data.lessons.forEach((lesson, i) => {
+                    html += `<div style="margin-bottom:30px;"><h3>${i+1}. ${lesson.title}</h3>${lesson.content}<br><br>`;
+                    if (lesson.key_takeaways) {
+                        html += '<strong>Key Takeaways:</strong><ul>';
+                        lesson.key_takeaways.forEach(t => html += '<li>' + t + '</li>');
+                        html += '</ul>';
+                    }
+                    html += '</div><hr>';
+                });
+                document.getElementById('lessonText').innerHTML = html;
+            }
+        }
+
+        function hideLessonContent() {
+            document.getElementById('lessonContent').style.display = 'none';
+        }
+
         // Initialize
         refreshAll();
         setInterval(refreshAll, 30000);
@@ -1142,19 +1444,205 @@ def api_mark_alerts_read():
         return jsonify({"success": False, "error": str(e)})
 
 
+# =============================================================================
+# NEW ADVANCED API ROUTES
+# =============================================================================
+
+@app.route('/api/deep-analysis/<asset>', methods=['POST'])
+def api_deep_analysis(asset):
+    """
+    Run multi-agent deep analysis on an asset
+    Uses all agents: Technical, Fundamental, News, Social, Risk
+    """
+    try:
+        print(f"\n🔬 Running deep analysis for {asset}...")
+
+        # Run the coordinator analysis
+        analysis = coordinator.analyze(asset, capital=100)
+
+        # Format agent opinions for response
+        agent_opinions = {}
+        for name, opinion in analysis.agent_opinions.items():
+            agent_opinions[name] = {
+                "agent": opinion.agent_name,
+                "action": opinion.action.value,
+                "confidence": opinion.confidence.name,
+                "reasoning": opinion.reasoning,
+                "key_factors": opinion.key_factors,
+                "suggested_hold_time": opinion.suggested_hold_time,
+                "entry_timing": opinion.entry_timing
+            }
+
+        return jsonify({
+            "success": True,
+            "analysis": {
+                "asset": analysis.asset,
+                "action": analysis.action.value,
+                "confidence": analysis.confidence.name,
+                "consensus_level": analysis.consensus_level,
+                "summary": analysis.summary,
+                "key_reasons": analysis.key_reasons,
+                "primary_opportunity": analysis.primary_opportunity,
+                "primary_risk": analysis.primary_risk,
+                "recommended_entry": analysis.recommended_entry,
+                "recommended_exit": analysis.recommended_exit,
+                "position_size_pct": analysis.position_size_pct,
+                "stop_loss_pct": analysis.stop_loss_pct,
+                "take_profit_pct": analysis.take_profit_pct,
+                "suggested_hold_time": analysis.suggested_hold_time,
+                "agent_opinions": agent_opinions,
+                "learning_points": analysis.learning_points,
+                "what_to_watch": analysis.what_to_watch,
+                "warnings": analysis.warnings
+            }
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/opportunities', methods=['POST'])
+def api_opportunities():
+    """
+    Scan all assets for trading opportunities with detailed explanations
+    """
+    try:
+        print("\n🔍 Scanning for opportunities...")
+        all_opportunities = []
+
+        assets = ['BTC', 'ETH', 'SPY', 'QQQ', 'NVDA']
+
+        for asset in assets:
+            print(f"  Analyzing {asset}...")
+            try:
+                # Run analysis
+                analysis = coordinator.analyze(asset, capital=100)
+
+                # Detect opportunities
+                opportunities = detector.detect_opportunities(analysis)
+
+                for opp in opportunities:
+                    all_opportunities.append(opp.to_dict())
+            except Exception as e:
+                print(f"  Error analyzing {asset}: {e}")
+                continue
+
+        # Sort by strength
+        all_opportunities.sort(key=lambda x: x['strength'], reverse=True)
+
+        return jsonify({
+            "success": True,
+            "opportunities": all_opportunities
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/education/<category>')
+def api_education(category):
+    """
+    Get educational lessons by category
+    """
+    try:
+        # Map category string to enum
+        category_map = {
+            'basics': LessonCategory.BASICS,
+            'technical': LessonCategory.TECHNICAL,
+            'fundamental': LessonCategory.FUNDAMENTAL,
+            'risk': LessonCategory.RISK,
+            'psychology': LessonCategory.PSYCHOLOGY,
+            'crypto': LessonCategory.CRYPTO,
+            'stocks': LessonCategory.STOCKS,
+            'strategies': LessonCategory.STRATEGIES,
+            'advanced': LessonCategory.ADVANCED
+        }
+
+        cat_enum = category_map.get(category.lower())
+        if not cat_enum:
+            return jsonify({"success": False, "error": "Unknown category"})
+
+        lessons = teacher.get_lessons_by_category(cat_enum)
+
+        return jsonify({
+            "success": True,
+            "category": category,
+            "lessons": [{
+                "id": l.id,
+                "title": l.title,
+                "difficulty": l.difficulty,
+                "content": l.content,
+                "key_takeaways": l.key_takeaways
+            } for l in lessons]
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/education/lesson/<lesson_id>')
+def api_lesson(lesson_id):
+    """
+    Get a specific lesson
+    """
+    try:
+        lesson = teacher.get_lesson(lesson_id)
+        if not lesson:
+            return jsonify({"success": False, "error": "Lesson not found"})
+
+        return jsonify({
+            "success": True,
+            "lesson": {
+                "id": lesson.id,
+                "title": lesson.title,
+                "category": lesson.category.value,
+                "difficulty": lesson.difficulty,
+                "content": lesson.content,
+                "key_takeaways": lesson.key_takeaways,
+                "related_lessons": lesson.related_lessons
+            }
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/agent-teachings')
+def api_agent_teachings():
+    """
+    Get educational content from all agents
+    """
+    try:
+        teachings = coordinator.get_all_teaching_content()
+        return jsonify({
+            "success": True,
+            "teachings": teachings
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
 def run_app(host='0.0.0.0', port=5000, debug=False):
     """Run the application"""
     print("\n" + "=" * 60)
-    print("  🏦 SHOPGUARD TRADING PLATFORM")
+    print("  🏦 SHOPGUARD TRADING PLATFORM v2.0")
     print("=" * 60)
     print(f"\n  URL: http://localhost:{port}")
-    print("\n  Features:")
-    print("    ✓ Real-time market data")
-    print("    ✓ AI trading signals")
-    print("    ✓ News sentiment analysis")
-    print("    ✓ Social media sentiment")
-    print("    ✓ Portfolio management")
-    print("    ✓ Trade history & analytics")
+    print("\n  CORE FEATURES:")
+    print("    ✓ Real-time market data (CoinGecko + Yahoo Finance)")
+    print("    ✓ AI trading signals with confidence scores")
+    print("    ✓ Auto-trading with stop loss & take profit")
+    print("    ✓ Portfolio management & trade history")
+    print("\n  ADVANCED FEATURES (NEW!):")
+    print("    🧠 Multi-Agent Deep Analysis")
+    print("       • Technical Agent (RSI, MACD, Bollinger, Fibonacci)")
+    print("       • News Agent (Deep news research & sentiment)")
+    print("       • Social Agent (Reddit sentiment, FOMO/FUD detection)")
+    print("       • Risk Agent (Position sizing, volatility analysis)")
+    print("       • Fundamental Agent (Market cap, supply dynamics)")
+    print("    💡 Opportunity Detection with full explanations")
+    print("    📚 Complete Trading Education System")
+    print("    🎯 Recommended hold times and entry/exit points")
     print("\n" + "=" * 60 + "\n")
 
     app.run(host=host, port=port, debug=debug)
