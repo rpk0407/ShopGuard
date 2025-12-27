@@ -562,6 +562,400 @@ def api_historical():
         return jsonify({'success': False, 'error': str(e)})
 
 
+# =============================================================================
+# AI TRADING SYSTEM ENDPOINTS
+# =============================================================================
+
+# Global AI orchestrator instance
+_ai_orchestrator = None
+
+def get_orchestrator():
+    """Get or create AI orchestrator"""
+    global _ai_orchestrator
+    if _ai_orchestrator is None:
+        from ai_agents import MasterOrchestrator
+        _ai_orchestrator = MasterOrchestrator(initial_capital=100000)
+    return _ai_orchestrator
+
+
+@app.route('/api/ai/status', methods=['GET'])
+@login_required
+def api_ai_status():
+    """Get AI system status"""
+    try:
+        orchestrator = get_orchestrator()
+        status = orchestrator.get_status()
+        return jsonify({'success': True, **status})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ai/start', methods=['POST'])
+@login_required
+def api_ai_start():
+    """Start the AI trading system"""
+    try:
+        from ai_agents import SystemMode
+
+        data = request.json or {}
+        mode_str = data.get('mode', 'PAPER_TRADING')
+
+        mode_map = {
+            'PAPER_TRADING': SystemMode.PAPER_TRADING,
+            'LIVE_TRADING': SystemMode.LIVE_TRADING,
+            'ANALYSIS_ONLY': SystemMode.ANALYSIS_ONLY
+        }
+        mode = mode_map.get(mode_str, SystemMode.PAPER_TRADING)
+
+        orchestrator = get_orchestrator()
+        orchestrator.start(mode=mode)
+
+        return jsonify({
+            'success': True,
+            'message': f'AI system started in {mode.name} mode',
+            'mode': mode.name
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ai/stop', methods=['POST'])
+@login_required
+def api_ai_stop():
+    """Stop the AI trading system"""
+    try:
+        orchestrator = get_orchestrator()
+        orchestrator.stop()
+        return jsonify({'success': True, 'message': 'AI system stopped'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ai/settings', methods=['POST'])
+@login_required
+def api_ai_settings():
+    """Update AI system settings"""
+    try:
+        from ai_agents import RiskLevel
+
+        data = request.json or {}
+        orchestrator = get_orchestrator()
+
+        # Risk level
+        if 'risk_level' in data:
+            level_map = {
+                'CONSERVATIVE': RiskLevel.CONSERVATIVE,
+                'MODERATE': RiskLevel.MODERATE,
+                'AGGRESSIVE': RiskLevel.AGGRESSIVE
+            }
+            level = level_map.get(data['risk_level'], RiskLevel.MODERATE)
+            orchestrator.set_risk_level(level)
+
+        # Auto trading
+        if 'auto_trade' in data:
+            orchestrator.enable_auto_trading(data['auto_trade'])
+
+        # Watchlist
+        if 'add_symbol' in data:
+            orchestrator.add_to_watchlist(data['add_symbol'])
+
+        if 'block_symbol' in data:
+            orchestrator.block_symbol(data['block_symbol'])
+
+        return jsonify({
+            'success': True,
+            'message': 'Settings updated',
+            'status': orchestrator.get_status()
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ai/insights', methods=['GET'])
+@login_required
+def api_ai_insights():
+    """Get AI agent insights"""
+    try:
+        orchestrator = get_orchestrator()
+        insights = orchestrator.get_agent_insights()
+        return jsonify({'success': True, 'insights': insights})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ai/feed_news', methods=['POST'])
+@login_required
+def api_ai_feed_news():
+    """Feed news to AI for analysis"""
+    try:
+        data = request.json or {}
+        headline = data.get('headline', '')
+        content = data.get('content', '')
+        source = data.get('source', 'manual')
+        symbols = data.get('symbols', [])
+
+        if not headline:
+            return jsonify({'success': False, 'error': 'Headline required'})
+
+        orchestrator = get_orchestrator()
+        event = orchestrator.feed_news(headline, content, source, symbols if symbols else None)
+
+        return jsonify({
+            'success': True,
+            'event': {
+                'id': event.event_id,
+                'category': event.category.name,
+                'impact': event.impact.name,
+                'sentiment': event.sentiment.name,
+                'is_breaking': event.is_breaking,
+                'affected_symbols': event.affected_symbols
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ai/market_update', methods=['POST'])
+@login_required
+def api_ai_market_update():
+    """Update AI with market data"""
+    try:
+        from ai_agents import MarketSnapshot, MarketCondition
+
+        data = request.json or {}
+        prices = data.get('prices', {})
+        volumes = data.get('volumes', {})
+
+        if not prices:
+            return jsonify({'success': False, 'error': 'Prices required'})
+
+        snapshot = MarketSnapshot(
+            timestamp=datetime.now(),
+            prices=prices,
+            volumes=volumes,
+            spreads={},
+            order_book_imbalance={},
+            recent_trades={},
+            volatility={},
+            momentum={},
+            market_condition=MarketCondition.NEUTRAL
+        )
+
+        orchestrator = get_orchestrator()
+        orchestrator.update_market_data(snapshot)
+
+        return jsonify({
+            'success': True,
+            'message': f'Updated {len(prices)} symbols',
+            'status': orchestrator.get_status()
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ai/portfolio', methods=['GET'])
+@login_required
+def api_ai_portfolio():
+    """Get AI portfolio status"""
+    try:
+        orchestrator = get_orchestrator()
+        portfolio = orchestrator.executor.get_portfolio_summary()
+        return jsonify({'success': True, 'portfolio': portfolio})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ai/performance', methods=['GET'])
+@login_required
+def api_ai_performance():
+    """Get AI performance metrics"""
+    try:
+        orchestrator = get_orchestrator()
+        metrics = orchestrator.get_performance_metrics()
+
+        return jsonify({
+            'success': True,
+            'performance': {
+                'total_return': round(metrics.total_return * 100, 2),
+                'sharpe_ratio': round(metrics.sharpe_ratio, 2),
+                'max_drawdown': round(metrics.max_drawdown * 100, 2),
+                'win_rate': round(metrics.win_rate * 100, 1),
+                'profit_factor': round(metrics.profit_factor, 2),
+                'total_trades': metrics.total_trades
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ai/manual_trade', methods=['POST'])
+@login_required
+def api_ai_manual_trade():
+    """Execute manual trade through AI system"""
+    try:
+        from ai_agents import MarketSnapshot, MarketCondition
+
+        data = request.json or {}
+        symbol = data.get('symbol')
+        action = data.get('action')  # 'buy', 'sell', 'close'
+        quantity = data.get('quantity', 0)
+        price = data.get('price', 100)  # Current price
+
+        if not symbol or not action:
+            return jsonify({'success': False, 'error': 'Symbol and action required'})
+
+        # Create minimal snapshot
+        snapshot = MarketSnapshot(
+            timestamp=datetime.now(),
+            prices={symbol: price},
+            volumes={symbol: 10000},
+            spreads={},
+            order_book_imbalance={},
+            recent_trades={},
+            volatility={},
+            momentum={},
+            market_condition=MarketCondition.NEUTRAL
+        )
+
+        orchestrator = get_orchestrator()
+        orchestrator.manual_trade(symbol, action, quantity, snapshot)
+
+        return jsonify({
+            'success': True,
+            'message': f'{action.upper()} {quantity} {symbol} submitted',
+            'portfolio': orchestrator.executor.get_portfolio_summary()
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ai/emergency_close', methods=['POST'])
+@login_required
+def api_ai_emergency_close():
+    """Emergency close all positions"""
+    try:
+        from ai_agents import MarketSnapshot, MarketCondition
+
+        data = request.json or {}
+        prices = data.get('prices', {})
+
+        orchestrator = get_orchestrator()
+
+        # Get current positions for snapshot
+        positions = orchestrator.executor.positions
+        if not prices:
+            prices = {s: p.current_price for s, p in positions.items()}
+
+        snapshot = MarketSnapshot(
+            timestamp=datetime.now(),
+            prices=prices,
+            volumes={},
+            spreads={},
+            order_book_imbalance={},
+            recent_trades={},
+            volatility={},
+            momentum={},
+            market_condition=MarketCondition.NEUTRAL
+        )
+
+        orders = orchestrator.emergency_close_all(snapshot)
+
+        return jsonify({
+            'success': True,
+            'message': f'Emergency closed {len(orders)} positions',
+            'orders': len(orders)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ai/demo', methods=['POST'])
+@login_required
+def api_ai_demo():
+    """Run AI demo with simulated data"""
+    try:
+        from ai_agents import (
+            MasterOrchestrator, SystemMode, MarketSnapshot, MarketCondition
+        )
+
+        # Create fresh orchestrator for demo
+        demo = MasterOrchestrator(initial_capital=100000)
+        demo.start(mode=SystemMode.PAPER_TRADING)
+
+        # Add some symbols to watch
+        demo.add_to_watchlist('AAPL')
+        demo.add_to_watchlist('GOOGL')
+        demo.add_to_watchlist('MSFT')
+
+        # Simulate market data
+        np.random.seed(42)
+        prices = {
+            'AAPL': 150.0 + np.random.randn() * 2,
+            'GOOGL': 140.0 + np.random.randn() * 3,
+            'MSFT': 380.0 + np.random.randn() * 4
+        }
+        volumes = {
+            'AAPL': 50000000,
+            'GOOGL': 30000000,
+            'MSFT': 40000000
+        }
+
+        snapshot = MarketSnapshot(
+            timestamp=datetime.now(),
+            prices=prices,
+            volumes=volumes,
+            spreads={'AAPL': 0.01, 'GOOGL': 0.02, 'MSFT': 0.01},
+            order_book_imbalance={'AAPL': 0.3, 'GOOGL': -0.2, 'MSFT': 0.1},
+            recent_trades={},
+            volatility={'AAPL': 0.02, 'GOOGL': 0.025, 'MSFT': 0.018},
+            momentum={'AAPL': 0.5, 'GOOGL': -0.3, 'MSFT': 0.2},
+            market_condition=MarketCondition.NEUTRAL
+        )
+
+        # Feed some news
+        demo.feed_news(
+            "Apple announces record iPhone sales, beats estimates",
+            "Apple Inc reported quarterly earnings that exceeded Wall Street expectations...",
+            "reuters",
+            ['AAPL']
+        )
+
+        demo.feed_news(
+            "Fed signals potential rate cuts amid cooling inflation",
+            "The Federal Reserve indicated it may begin cutting interest rates...",
+            "bloomberg"
+        )
+
+        # Process market data
+        demo.update_market_data(snapshot)
+
+        # Let it process
+        import time
+        time.sleep(1)
+
+        # Get results
+        status = demo.get_status()
+        insights = demo.get_agent_insights()
+        portfolio = demo.executor.get_portfolio_summary()
+
+        demo.stop()
+
+        return jsonify({
+            'success': True,
+            'demo_results': {
+                'status': status,
+                'news_processed': insights.get('news', {}),
+                'opportunities': insights.get('opportunities', []),
+                'manipulation_alerts': insights.get('manipulation_alerts', []),
+                'portfolio': portfolio
+            },
+            'explanation': 'AI Demo ran with simulated market data and news. In real usage, connect to live data feeds.'
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'success': False, 'error': str(e), 'trace': traceback.format_exc()})
+
+
 if __name__ == '__main__':
     print("\n" + "="*60)
     print("  QUANTITATIVE TRADING DASHBOARD")
