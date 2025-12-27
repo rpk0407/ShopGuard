@@ -1,0 +1,6 @@
+# Minimal requirements for Live Trading Bot
+# Install with: pip install -r requirements_minimal.txt
+
+flask>=2.0.0
+requests>=2.28.0
+numpy>=1.20.0
