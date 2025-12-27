@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quant Trading Platform - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a1a;
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .header h1 {
+            color: #00d4ff;
+            font-size: 24px;
+        }
+
+        .header .user-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .header .user-info span {
+            color: #888;
+        }
+
+        .btn-logout {
+            padding: 8px 20px;
+            border: 1px solid #ff6b6b;
+            border-radius: 5px;
+            background: transparent;
+            color: #ff6b6b;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+
+        .btn-logout:hover {
+            background: #ff6b6b;
+            color: #fff;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 30px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Welcome Section */
+        .welcome-section {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(0, 153, 204, 0.05));
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .welcome-section h2 {
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+
+        .welcome-section p {
+            color: #aaa;
+            line-height: 1.6;
+        }
+
+        /* Component Grid */
+        .component-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+            gap: 25px;
+        }
+
+        /* Component Card */
+        .component-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .component-card:hover {
+            border-color: rgba(0, 212, 255, 0.3);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header {
+            background: rgba(0, 212, 255, 0.1);
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .card-header h3 {
+            color: #00d4ff;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .card-header .subtitle {
+            color: #666;
+            font-size: 13px;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .explanation {
+            background: rgba(255, 193, 7, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 3px solid #ffc107;
+        }
+
+        .explanation p {
+            color: #ffc107;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        /* Form Controls */
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #888;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #00d4ff;
+        }
+
+        .btn-run {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: #fff;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-run:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-run:disabled {
+            background: #444;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Results */
+        .results {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .results pre {
+            white-space: pre-wrap;
+            color: #0f0;
+        }
+
+        .results .error {
+            color: #ff6b6b;
+        }
+
+        .results .label {
+            color: #888;
+        }
+
+        .results .value {
+            color: #00d4ff;
+        }
+
+        .results .positive {
+            color: #4ade80;
+        }
+
+        .results .negative {
+            color: #f87171;
+        }
+
+        /* Status indicators */
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-dot.green { background: #4ade80; }
+        .status-dot.yellow { background: #fbbf24; }
+        .status-dot.red { background: #f87171; }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #888;
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .component-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>QUANT TRADING PLATFORM</h1>
+        <div class="user-info">
+            <span>Welcome, {{ session.username }}</span>
+            <a href="/logout" class="btn-logout">Logout</a>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <section class="welcome-section">
+            <h2>Your Private Trading Infrastructure</h2>
+            <p>This dashboard gives you access to all 9 quantitative trading components. Each tool below explains what it does and lets you run it with your own parameters. Click "Run" to see results.</p>
+        </section>
+
+        <div class="component-grid">
+            <!-- 1. GARCH Volatility -->
+            <div class="component-card">
+                <div class="card-header">
+                    <h3>1. GARCH Volatility Model</h3>
+                    <span class="subtitle">Forecast market volatility</span>
+                </div>
+                <div class="card-body">
+                    <div class="explanation">
+                        <p><strong>What it does:</strong> GARCH (Generalized Autoregressive Conditional Heteroskedasticity) predicts how volatile the market will be. High volatility = more risk and opportunity.</p>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Sample Size</label>
+                            <input type="number" id="garch-samples" value="500" min="100" max="2000">
+                        </div>
+                        <div class="form-group">
+                            <label>Random Seed</label>
+                            <input type="number" id="garch-seed" value="42">
+                        </div>
+                    </div>
+                    <button class="btn-run" onclick="runGarch()">Run GARCH Analysis</button>
+                    <div class="results" id="garch-results"></div>
+                </div>
+            </div>
+
+            <!-- 2. Smart Order Router -->
+            <div class="component-card">
+                <div class="card-header">
+                    <h3>2. Smart Order Router</h3>
+                    <span class="subtitle">Find the best venue for your orders</span>
+                </div>
+                <div class="card-body">
+                    <div class="explanation">
+                        <p><strong>What it does:</strong> When you want to buy/sell stocks, this finds the best exchange (NYSE, NASDAQ, Dark Pools) to get the best price and fastest execution.</p>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Symbol</label>
+                            <input type="text" id="router-symbol" value="AAPL">
+                        </div>
+                        <div class="form-group">
+                            <label>Side</label>
+                            <select id="router-side">
+                                <option value="buy">Buy</option>
+                                <option value="sell">Sell</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Quantity</label>
+                            <input type="number" id="router-qty" value="5000">
+                        </div>
+                    </div>
+                    <button class="btn-run" onclick="runRouter()">Route Order</button>
+                    <div class="results" id="router-results"></div>
+                </div>
+            </div>
+
+            <!-- 3. Execution Algorithms -->
+            <div class="component-card">
+                <div class="card-header">
+                    <h3>3. Execution Algorithms</h3>
+                    <span class="subtitle">TWAP, VWAP, Implementation Shortfall</span>
+                </div>
+                <div class="card-body">
+                    <div class="explanation">
+                        <p><strong>What it does:</strong> Breaks large orders into smaller pieces to minimize market impact. TWAP spreads evenly over time, VWAP follows volume patterns, IS minimizes slippage.</p>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Total Quantity</label>
+                            <input type="number" id="algo-qty" value="10000">
+                        </div>
+                        <div class="form-group">
+                            <label>Duration (hours)</label>
+                            <input type="number" id="algo-duration" value="2">
+                        </div>
+                    </div>
+                    <button class="btn-run" onclick="runAlgorithms()">Generate Schedules</button>
+                    <div class="results" id="algo-results"></div>
+                </div>
+            </div>
+
+            <!-- 4. Market Impact -->
+            <div class="component-card">
+                <div class="card-header">
+                    <h3>4. Market Impact Model</h3>
+                    <span class="subtitle">Almgren-Chriss cost estimation</span>
+                </div>
+                <div class="card-body">
+                    <div class="explanation">
+                        <p><strong>What it does:</strong> Estimates how much your trade will move the market price. Larger orders have more impact. Helps you decide how aggressively to trade.</p>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Daily Volume</label>
+                            <input type="number" id="impact-volume" value="5000000">
+                        </div>
+                        <div class="form-group">
+                            <label>Volatility (%)</label>
+                            <input type="number" id="impact-vol" value="25" step="1">
+                        </div>
+                    </div>
+                    <button class="btn-run" onclick="runImpact()">Calculate Impact</button>
+                    <div class="results" id="impact-results"></div>
+                </div>
+            </div>
+
+            <!-- 5. Portfolio Optimization -->
+            <div class="component-card">
+                <div class="card-header">
+                    <h3>5. Portfolio Optimization</h3>
+                    <span class="subtitle">Mean-Variance & Risk Parity</span>
+                </div>
+                <div class="card-body">
+                    <div class="explanation">
+                        <p><strong>What it does:</strong> Finds the optimal mix of stocks to maximize returns for your risk tolerance. Mean-Variance maximizes Sharpe ratio, Risk Parity balances risk equally.</p>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Risk Aversion (0-5)</label>
+                            <input type="number" id="port-risk" value="1.0" step="0.1" min="0" max="5">
+                        </div>
+                    </div>
+                    <button class="btn-run" onclick="runPortfolio()">Optimize Portfolio</button>
+                    <div class="results" id="portfolio-results"></div>
+                </div>
+            </div>
+
+            <!-- 6. Monitoring Dashboard -->
+            <div class="component-card">
+                <div class="card-header">
+                    <h3>6. Monitoring Dashboard</h3>
+                    <span class="subtitle">Real-time P&L and positions</span>
+                </div>
+                <div class="card-body">
+                    <div class="explanation">
+                        <p><strong>What it does:</strong> Tracks your profit/loss in real-time, monitors all positions, calculates drawdown, and shows exposure. Essential for live trading.</p>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Total P&L ($)</label>
+                            <input type="number" id="mon-pnl" value="25000">
+                        </div>
+                        <div class="form-group">
+                            <label>Realized ($)</label>
+                            <input type="number" id="mon-realized" value="18000">
+                        </div>
+                    </div>
+                    <button class="btn-run" onclick="runMonitoring()">Update Dashboard</button>
+                    <div class="results" id="monitoring-results"></div>
+                </div>
+            </div>
+
+            <!-- 7. Alert System -->
+            <div class="component-card">
+                <div class="card-header">
+                    <h3>7. Alert System</h3>
+                    <span class="subtitle">Risk monitoring and notifications</span>
+                </div>
+                <div class="card-body">
+                    <div class="explanation">
+                        <p><strong>What it does:</strong> Monitors your account and triggers alerts when thresholds are breached (e.g., P&L drops too much, drawdown exceeds limit). Protects you from big losses.</p>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>P&L Threshold ($)</label>
+                            <input type="number" id="alert-pnl" value="-50000">
+                        </div>
+                        <div class="form-group">
+                            <label>Current P&L ($)</label>
+                            <input type="number" id="alert-current" value="-65000">
+                        </div>
+                    </div>
+                    <button class="btn-run" onclick="runAlerts()">Check Alerts</button>
+                    <div class="results" id="alerts-results"></div>
+                </div>
+            </div>
+
+            <!-- 8. Sentiment Analysis -->
+            <div class="component-card">
+                <div class="card-header">
+                    <h3>8. Sentiment Analysis</h3>
+                    <span class="subtitle">Analyze news and social media</span>
+                </div>
+                <div class="card-body">
+                    <div class="explanation">
+                        <p><strong>What it does:</strong> Reads news headlines and determines if they're positive, negative, or neutral for stocks. Helps you understand market sentiment before trading.</p>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 3;">
+                            <label>Headlines (one per line)</label>
+                            <textarea id="sentiment-headlines" rows="3" style="width:100%; padding:10px; border:1px solid rgba(255,255,255,0.1); border-radius:8px; background:rgba(255,255,255,0.05); color:#fff;">Apple reports record earnings
+Tesla shares plunge on concerns
+Fed signals rate cuts ahead</textarea>
+                        </div>
+                    </div>
+                    <button class="btn-run" onclick="runSentiment()">Analyze Sentiment</button>
+                    <div class="results" id="sentiment-results"></div>
+                </div>
+            </div>
+
+            <!-- 9. Trading Engine -->
+            <div class="component-card">
+                <div class="card-header">
+                    <h3>9. Trading Engine</h3>
+                    <span class="subtitle">Core trading system</span>
+                </div>
+                <div class="card-body">
+                    <div class="explanation">
+                        <p><strong>What it does:</strong> The heart of the system. Coordinates strategies, executes orders, manages risk. Can run in paper trading mode (simulated) or live mode.</p>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Engine Name</label>
+                            <input type="text" id="engine-name" value="MyEngine">
+                        </div>
+                        <div class="form-group">
+                            <label>Initial Equity ($)</label>
+                            <input type="number" id="engine-equity" value="1000000">
+                        </div>
+                        <div class="form-group">
+                            <label>Mode</label>
+                            <select id="engine-mode">
+                                <option value="true">Paper Trading</option>
+                                <option value="false">Live (Simulated)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn-run" onclick="runEngine()">Initialize Engine</button>
+                    <div class="results" id="engine-results"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        async function apiCall(endpoint, data) {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            return await response.json();
+        }
+
+        function showLoading(id) {
+            document.getElementById(id).innerHTML = '<div class="loading">Processing</div>';
+        }
+
+        function formatResult(data) {
+            return JSON.stringify(data, null, 2);
+        }
+
+        async function runGarch() {
+            showLoading('garch-results');
+            const result = await apiCall('/api/garch', {
+                samples: parseInt(document.getElementById('garch-samples').value),
+                seed: parseInt(document.getElementById('garch-seed').value)
+            });
+
+            let html = '';
+            if (result.success) {
+                html = `<pre>
+<span class="label">GARCH(1,1) Parameters:</span>
+  Omega: <span class="value">${result.params.omega.toFixed(8)}</span>
+  Alpha: <span class="value">${result.params.alpha.toFixed(4)}</span>
+  Beta:  <span class="value">${result.params.beta.toFixed(4)}</span>
+  Persistence: <span class="value">${result.params.persistence.toFixed(4)}</span>
+
+<span class="label">Volatility:</span>
+  Current: <span class="value">${result.params.unconditional_vol.toFixed(2)}%</span>
+  5-Day Forecast: <span class="value">${result.forecast[4].toFixed(2)}%</span>
+
+<span class="label">Insight:</span> ${result.explanation}
+</pre>`;
+            } else {
+                html = `<pre class="error">Error: ${result.error}</pre>`;
+            }
+            document.getElementById('garch-results').innerHTML = html;
+        }
+
+        async function runRouter() {
+            showLoading('router-results');
+            const result = await apiCall('/api/router', {
+                symbol: document.getElementById('router-symbol').value,
+                side: document.getElementById('router-side').value,
+                quantity: parseInt(document.getElementById('router-qty').value)
+            });
+
+            let html = '';
+            if (result.success) {
+                let ordersHtml = result.orders.map(o =>
+                    `  ${o.venue}: ${o.quantity} shares @ $${o.price.toFixed(2)}`
+                ).join('\n');
+
+                html = `<pre>
+<span class="label">Order:</span> ${result.side.toUpperCase()} ${result.total_quantity.toLocaleString()} ${result.symbol}
+
+<span class="label">Routing Decision:</span>
+${ordersHtml}
+
+<span class="label">Expected Fill Rate:</span> <span class="positive">${(result.expected_fill_rate * 100).toFixed(0)}%</span>
+<span class="label">Expected Cost:</span> <span class="value">${result.expected_cost_bps.toFixed(2)} bps</span>
+
+<span class="label">Insight:</span> ${result.explanation}
+</pre>`;
+            } else {
+                html = `<pre class="error">Error: ${result.error}</pre>`;
+            }
+            document.getElementById('router-results').innerHTML = html;
+        }
+
+        async function runAlgorithms() {
+            showLoading('algo-results');
+            const result = await apiCall('/api/algorithms', {
+                quantity: parseInt(document.getElementById('algo-qty').value),
+                duration: parseInt(document.getElementById('algo-duration').value)
+            });
+
+            let html = '';
+            if (result.success) {
+                html = `<pre>
+<span class="label">TWAP (Time-Weighted):</span>
+  Slices: ${result.twap.slices}
+  Schedule: ${result.twap.quantities.join(', ')}...
+  ${result.twap.description}
+
+<span class="label">VWAP (Volume-Weighted):</span>
+  Peak: ${result.vwap.peak} shares
+  Min: ${result.vwap.min} shares
+  ${result.vwap.description}
+
+<span class="label">Implementation Shortfall:</span>
+  First 5: ${result.implementation_shortfall.first_5.join(', ')}
+  Last 5: ${result.implementation_shortfall.last_5.join(', ')}
+  ${result.implementation_shortfall.description}
+
+<span class="label">Insight:</span> ${result.explanation}
+</pre>`;
+            } else {
+                html = `<pre class="error">Error: ${result.error}</pre>`;
+            }
+            document.getElementById('algo-results').innerHTML = html;
+        }
+
+        async function runImpact() {
+            showLoading('impact-results');
+            const result = await apiCall('/api/impact', {
+                sizes: [10000, 50000, 100000],
+                daily_volume: parseInt(document.getElementById('impact-volume').value),
+                volatility: parseFloat(document.getElementById('impact-vol').value) / 100
+            });
+
+            let html = '';
+            if (result.success) {
+                let impactHtml = result.results.map(r =>
+                    `  ${r.size.toLocaleString()} shares (${r.pct_adv}% ADV): $${r.total_cost.toLocaleString()}`
+                ).join('\n');
+
+                html = `<pre>
+<span class="label">Market Impact Estimates:</span>
+${impactHtml}
+
+<span class="label">Breakdown for 100K shares:</span>
+  Temporary Impact: $${result.results[2].temporary_cost.toLocaleString()}
+  Permanent Impact: $${result.results[2].permanent_cost.toLocaleString()}
+
+<span class="label">Insight:</span> ${result.explanation}
+</pre>`;
+            } else {
+                html = `<pre class="error">Error: ${result.error}</pre>`;
+            }
+            document.getElementById('impact-results').innerHTML = html;
+        }
+
+        async function runPortfolio() {
+            showLoading('portfolio-results');
+            const result = await apiCall('/api/portfolio', {
+                risk_aversion: parseFloat(document.getElementById('port-risk').value)
+            });
+
+            let html = '';
+            if (result.success) {
+                let mvWeights = Object.entries(result.mean_variance.weights)
+                    .filter(([k, v]) => v > 0.01)
+                    .map(([k, v]) => `  ${k}: ${(v * 100).toFixed(1)}%`)
+                    .join('\n');
+
+                let rpWeights = Object.entries(result.risk_parity.weights)
+                    .map(([k, v]) => `  ${k}: ${(v * 100).toFixed(1)}%`)
+                    .join('\n');
+
+                html = `<pre>
+<span class="label">Mean-Variance Portfolio:</span>
+${mvWeights}
+  Expected Return: <span class="positive">${result.mean_variance.expected_return}%</span>
+  Volatility: <span class="value">${result.mean_variance.volatility}%</span>
+  Sharpe Ratio: <span class="value">${result.mean_variance.sharpe_ratio}</span>
+
+<span class="label">Risk Parity Portfolio:</span>
+${rpWeights}
+
+<span class="label">Insight:</span> ${result.explanation}
+</pre>`;
+            } else {
+                html = `<pre class="error">Error: ${result.error}</pre>`;
+            }
+            document.getElementById('portfolio-results').innerHTML = html;
+        }
+
+        async function runMonitoring() {
+            showLoading('monitoring-results');
+            const result = await apiCall('/api/monitoring', {
+                total_pnl: parseInt(document.getElementById('mon-pnl').value),
+                realized: parseInt(document.getElementById('mon-realized').value),
+                unrealized: parseInt(document.getElementById('mon-pnl').value) - parseInt(document.getElementById('mon-realized').value)
+            });
+
+            let html = '';
+            if (result.success) {
+                const pnlClass = result.pnl.total >= 0 ? 'positive' : 'negative';
+                html = `<pre>
+<span class="label">P&L Summary:</span>
+  Total: <span class="${pnlClass}">$${result.pnl.total.toLocaleString()}</span>
+  Realized: $${result.pnl.realized.toLocaleString()}
+  Unrealized: $${result.pnl.unrealized.toLocaleString()}
+  Peak: $${result.pnl.peak.toLocaleString()}
+  Drawdown: <span class="${result.pnl.drawdown > 5 ? 'negative' : 'value'}">${result.pnl.drawdown}%</span>
+
+<span class="label">Positions:</span>
+  Count: ${result.positions.count}
+  Total Exposure: $${result.positions.total_exposure.toLocaleString()}
+
+<span class="label">Insight:</span> ${result.explanation}
+</pre>`;
+            } else {
+                html = `<pre class="error">Error: ${result.error}</pre>`;
+            }
+            document.getElementById('monitoring-results').innerHTML = html;
+        }
+
+        async function runAlerts() {
+            showLoading('alerts-results');
+            const result = await apiCall('/api/alerts', {
+                pnl_threshold: parseInt(document.getElementById('alert-pnl').value),
+                current_pnl: parseInt(document.getElementById('alert-current').value),
+                current_drawdown: 0.08
+            });
+
+            let html = '';
+            if (result.success) {
+                let alertsHtml = result.alerts.length > 0
+                    ? result.alerts.map(a => `  <span class="${a.level === 'CRITICAL' ? 'negative' : 'value'}">[${a.level}]</span> ${a.message}`).join('\n')
+                    : '  <span class="positive">No alerts triggered</span>';
+
+                html = `<pre>
+<span class="label">Alert Status:</span>
+  Rules Active: ${result.rules_count}
+  Alerts Triggered: <span class="${result.triggered_count > 0 ? 'negative' : 'positive'}">${result.triggered_count}</span>
+
+<span class="label">Triggered Alerts:</span>
+${alertsHtml}
+
+<span class="label">Insight:</span> ${result.explanation}
+</pre>`;
+            } else {
+                html = `<pre class="error">Error: ${result.error}</pre>`;
+            }
+            document.getElementById('alerts-results').innerHTML = html;
+        }
+
+        async function runSentiment() {
+            showLoading('sentiment-results');
+            const headlines = document.getElementById('sentiment-headlines').value.split('\n').filter(h => h.trim());
+            const result = await apiCall('/api/sentiment', { headlines });
+
+            let html = '';
+            if (result.success) {
+                let sentimentHtml = result.results.map(r => {
+                    const scoreClass = r.score > 0.1 ? 'positive' : (r.score < -0.1 ? 'negative' : 'value');
+                    const icon = r.score > 0.1 ? '+' : (r.score < -0.1 ? '-' : '=');
+                    return `  <span class="${scoreClass}">[${icon}${r.score.toFixed(2)}]</span> ${r.headline.substring(0, 45)}...`;
+                }).join('\n');
+
+                html = `<pre>
+<span class="label">Sentiment Analysis:</span>
+${sentimentHtml}
+
+<span class="label">Legend:</span>
+  <span class="positive">[+]</span> Positive sentiment
+  <span class="value">[=]</span> Neutral sentiment
+  <span class="negative">[-]</span> Negative sentiment
+
+<span class="label">Insight:</span> ${result.explanation}
+</pre>`;
+            } else {
+                html = `<pre class="error">Error: ${result.error}</pre>`;
+            }
+            document.getElementById('sentiment-results').innerHTML = html;
+        }
+
+        async function runEngine() {
+            showLoading('engine-results');
+            const result = await apiCall('/api/engine', {
+                name: document.getElementById('engine-name').value,
+                equity: parseInt(document.getElementById('engine-equity').value),
+                paper_trading: document.getElementById('engine-mode').value === 'true'
+            });
+
+            let html = '';
+            if (result.success) {
+                const modeClass = result.engine.paper_trading ? 'value' : 'negative';
+                const modeText = result.engine.paper_trading ? 'Paper Trading (Safe)' : 'LIVE MODE';
+
+                html = `<pre>
+<span class="label">Trading Engine Status:</span>
+  Name: <span class="value">${result.engine.name}</span>
+  State: <span class="positive">${result.engine.state}</span>
+  Mode: <span class="${modeClass}">${modeText}</span>
+  Strategies: ${result.engine.num_strategies}
+  Equity: <span class="value">$${result.engine.equity.toLocaleString()}</span>
+
+<span class="label">Insight:</span> ${result.explanation}
+</pre>`;
+            } else {
+                html = `<pre class="error">Error: ${result.error}</pre>`;
+            }
+            document.getElementById('engine-results').innerHTML = html;
+        }
+    </script>
+</body>
+</html>
