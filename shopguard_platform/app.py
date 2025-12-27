@@ -1,0 +1,1160 @@
+"""
+ShopGuard Trading Platform - Complete Web Application
+"""
+import os
+import sys
+import json
+import threading
+import time
+from datetime import datetime
+from flask import Flask, render_template_string, jsonify, request
+
+from .database import db
+from .engine import engine, SignalType
+
+app = Flask(__name__)
+app.secret_key = os.urandom(24)
+
+# Background scanner
+scanner_thread = None
+scanner_running = False
+
+
+# =============================================================================
+# COMPLETE HTML TEMPLATE
+# =============================================================================
+
+MAIN_TEMPLATE = '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏦 ShopGuard Trading Platform</title>
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a25;
+            --border: #2a2a3a;
+            --text-primary: #ffffff;
+            --text-secondary: #8888aa;
+            --accent: #6366f1;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 220px;
+            height: 100vh;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo {
+            font-size: 1.5em;
+            font-weight: 700;
+            margin-bottom: 30px;
+            color: var(--accent);
+        }
+
+        .nav-item {
+            padding: 12px 15px;
+            margin-bottom: 5px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            border-left: 3px solid var(--accent);
+        }
+
+        /* Main Content */
+        .main {
+            margin-left: 220px;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 { font-size: 1.5em; }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        /* Cards */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Stats */
+        .stat-value {
+            font-size: 2em;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.85em;
+        }
+
+        .positive { color: var(--success); }
+        .negative { color: var(--danger); }
+
+        /* Tables */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.85em;
+            text-transform: uppercase;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        /* Signals */
+        .signal-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .signal-buy { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .signal-sell { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .signal-hold { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+
+        /* Score bars */
+        .score-bar {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .score {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7em;
+        }
+
+        .score-tech { background: rgba(99, 102, 241, 0.3); }
+        .score-news { background: rgba(168, 85, 247, 0.3); }
+        .score-social { background: rgba(249, 115, 22, 0.3); }
+
+        /* Positions */
+        .position-card {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .position-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        /* Alerts */
+        .alert-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: var(--bg-secondary);
+        }
+
+        .alert-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .alert-info .alert-dot { background: var(--accent); }
+        .alert-warning .alert-dot { background: var(--warning); }
+        .alert-critical .alert-dot { background: var(--danger); }
+
+        /* Live indicator */
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .tab.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Settings Form */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        /* Page sections */
+        .page { display: none; }
+        .page.active { display: block; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="logo">🏦 ShopGuard</div>
+        <div class="nav-item active" data-page="dashboard">📊 Dashboard</div>
+        <div class="nav-item" data-page="signals">🎯 Signals</div>
+        <div class="nav-item" data-page="portfolio">💰 Portfolio</div>
+        <div class="nav-item" data-page="trades">📜 Trades</div>
+        <div class="nav-item" data-page="settings">⚙️ Settings</div>
+        <div style="flex:1;"></div>
+        <div class="nav-item" data-page="alerts">🔔 Alerts <span id="alertCount" style="background:var(--danger);padding:2px 8px;border-radius:10px;font-size:0.8em;margin-left:auto;">0</span></div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Dashboard Page -->
+        <div id="page-dashboard" class="page active">
+            <div class="header">
+                <h1>Dashboard</h1>
+                <div class="header-actions">
+                    <div class="live-dot"></div>
+                    <span style="color:var(--text-secondary);margin-right:15px;">Live</span>
+                    <button class="btn btn-primary" onclick="scanMarket()">🔍 Scan Market</button>
+                    <button class="btn btn-outline" onclick="refreshAll()">🔄 Refresh</button>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title">Total Equity</div>
+                    <div class="stat-value" id="totalEquity">$0.00</div>
+                    <div class="stat-label">Initial: $<span id="initialCapital">100</span></div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Total P&L</div>
+                    <div class="stat-value" id="totalPnl">$0.00</div>
+                    <div class="stat-label" id="pnlPercent">0.00%</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Open Positions</div>
+                    <div class="stat-value" id="positionsCount">0</div>
+                    <div class="stat-label">Active trades</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Win Rate</div>
+                    <div class="stat-value" id="winRate">0%</div>
+                    <div class="stat-label"><span id="totalTrades">0</span> total trades</div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="card" style="grid-column: span 2;">
+                    <div class="card-header">
+                        <div class="card-title">Top Signals</div>
+                        <span style="color:var(--text-secondary);font-size:0.85em;">Last scan: <span id="lastScan">Never</span></span>
+                    </div>
+                    <div id="topSignals">
+                        <p style="color:var(--text-secondary);">Click "Scan Market" to analyze</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Quick Actions</div>
+                    <div style="display:flex;flex-direction:column;gap:10px;margin-top:15px;">
+                        <button class="btn btn-success" onclick="autoTrade()">🤖 Auto Trade</button>
+                        <button class="btn btn-danger" onclick="closeAllPositions()">🛑 Close All</button>
+                        <button class="btn btn-outline" onclick="showPage('settings')">⚙️ Settings</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Signals Page -->
+        <div id="page-signals" class="page">
+            <div class="header">
+                <h1>Trading Signals</h1>
+                <button class="btn btn-primary" onclick="scanMarket()">🔍 Scan All Assets</button>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" data-filter="all">All</div>
+                <div class="tab" data-filter="buy">Buy Signals</div>
+                <div class="tab" data-filter="sell">Sell Signals</div>
+            </div>
+
+            <div class="card">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Price</th>
+                                <th>Signal</th>
+                                <th>Confidence</th>
+                                <th>Scores</th>
+                                <th>SL / TP</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="signalsTable">
+                            <tr><td colspan="7" style="text-align:center;color:var(--text-secondary);">No signals yet. Click "Scan All Assets"</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Portfolio Page -->
+        <div id="page-portfolio" class="page">
+            <div class="header">
+                <h1>Portfolio</h1>
+                <button class="btn btn-outline" onclick="refreshPortfolio()">🔄 Refresh Prices</button>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title">Cash</div>
+                    <div class="stat-value" id="portfolioCash">$0.00</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Positions Value</div>
+                    <div class="stat-value" id="portfolioPositions">$0.00</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Open Positions</div>
+                <div id="positionsList" style="margin-top:15px;">
+                    <p style="color:var(--text-secondary);">No open positions</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trades Page -->
+        <div id="page-trades" class="page">
+            <div class="header">
+                <h1>Trade History</h1>
+            </div>
+
+            <div class="card">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Symbol</th>
+                                <th>Side</th>
+                                <th>Quantity</th>
+                                <th>Price</th>
+                                <th>P&L</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tradesTable">
+                            <tr><td colspan="6" style="text-align:center;color:var(--text-secondary);">No trades yet</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="page-settings" class="page">
+            <div class="header">
+                <h1>Settings</h1>
+                <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title">Trading Settings</div>
+                    <div class="form-group">
+                        <label>Initial Capital ($)</label>
+                        <input type="number" id="settingCapital" value="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Risk Level</label>
+                        <select id="settingRisk">
+                            <option value="conservative">Conservative (2% SL, 4% TP)</option>
+                            <option value="moderate" selected>Moderate (3% SL, 6% TP)</option>
+                            <option value="aggressive">Aggressive (5% SL, 10% TP)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Min Confidence (%)</label>
+                        <input type="number" id="settingConfidence" value="65" min="0" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Scan Interval (minutes)</label>
+                        <input type="number" id="settingScanInterval" value="5" min="1">
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Assets</div>
+                    <div class="form-group">
+                        <label>Stocks (comma-separated)</label>
+                        <input type="text" id="settingStocks" value="NVDA, SPY, QQQ, AAPL, TSLA, AMD">
+                    </div>
+                    <div class="form-group">
+                        <label>Crypto (comma-separated)</label>
+                        <input type="text" id="settingCrypto" value="bitcoin, ethereum">
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Data Sources</div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="settingEnableNews" checked> Enable News Analysis</label>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="settingEnableSocial" checked> Enable Social Sentiment</label>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Alpaca API (Optional)</div>
+                    <p style="color:var(--text-secondary);font-size:0.85em;margin-bottom:15px;">
+                        For real paper trading. Get FREE keys at alpaca.markets
+                    </p>
+                    <div class="form-group">
+                        <label>API Key</label>
+                        <input type="text" id="settingAlpacaKey" placeholder="PKXXXXXXXXXX">
+                    </div>
+                    <div class="form-group">
+                        <label>Secret Key</label>
+                        <input type="password" id="settingAlpacaSecret" placeholder="••••••••••••">
+                    </div>
+                    <button class="btn btn-outline" onclick="testAlpaca()">Test Connection</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts Page -->
+        <div id="page-alerts" class="page">
+            <div class="header">
+                <h1>Alerts</h1>
+                <button class="btn btn-outline" onclick="markAllRead()">✓ Mark All Read</button>
+            </div>
+
+            <div class="card">
+                <div id="alertsList">
+                    <p style="color:var(--text-secondary);">No alerts</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // State
+        let currentSignals = {};
+        let autoRefreshInterval = null;
+
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const page = item.dataset.page;
+                if (page) showPage(page);
+            });
+        });
+
+        function showPage(page) {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+
+            document.querySelector(`[data-page="${page}"]`).classList.add('active');
+            document.getElementById(`page-${page}`).classList.add('active');
+
+            if (page === 'portfolio') refreshPortfolio();
+            if (page === 'trades') loadTrades();
+            if (page === 'settings') loadSettings();
+            if (page === 'alerts') loadAlerts();
+        }
+
+        // API Calls
+        async function api(endpoint, method = 'GET', data = null) {
+            const opts = { method, headers: { 'Content-Type': 'application/json' } };
+            if (data) opts.body = JSON.stringify(data);
+            const resp = await fetch(`/api/${endpoint}`, opts);
+            return resp.json();
+        }
+
+        // Dashboard
+        async function refreshAll() {
+            const data = await api('dashboard');
+            if (!data.success) return;
+
+            document.getElementById('totalEquity').textContent = `$${data.portfolio.equity.toFixed(2)}`;
+            document.getElementById('initialCapital').textContent = data.portfolio.initial_capital.toFixed(0);
+
+            const pnl = data.portfolio.total_pnl;
+            const pnlEl = document.getElementById('totalPnl');
+            pnlEl.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+            pnlEl.className = `stat-value ${pnl >= 0 ? 'positive' : 'negative'}`;
+            document.getElementById('pnlPercent').textContent = `${data.portfolio.total_pnl_pct.toFixed(2)}%`;
+
+            document.getElementById('positionsCount').textContent = data.portfolio.positions.length;
+            document.getElementById('winRate').textContent = `${data.stats.win_rate}%`;
+            document.getElementById('totalTrades').textContent = data.stats.total_trades;
+            document.getElementById('lastScan').textContent = data.last_scan || 'Never';
+
+            document.getElementById('alertCount').textContent = data.unread_alerts;
+
+            if (data.signals && Object.keys(data.signals).length > 0) {
+                updateTopSignals(data.signals);
+            }
+        }
+
+        function updateTopSignals(signals) {
+            const container = document.getElementById('topSignals');
+            const sorted = Object.values(signals)
+                .filter(s => s.signal !== 'HOLD')
+                .sort((a, b) => b.confidence - a.confidence)
+                .slice(0, 5);
+
+            if (sorted.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-secondary);">No actionable signals</p>';
+                return;
+            }
+
+            container.innerHTML = sorted.map(s => {
+                const signalClass = s.signal.includes('BUY') ? 'signal-buy' : s.signal.includes('SELL') ? 'signal-sell' : 'signal-hold';
+                return `
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid var(--border);">
+                        <div>
+                            <strong>${s.symbol}</strong>
+                            <span class="signal-badge ${signalClass}">${s.signal}</span>
+                            <div class="score-bar">
+                                <span class="score score-tech">T:${s.technical_score.toFixed(2)}</span>
+                                <span class="score score-news">N:${s.news_score.toFixed(2)}</span>
+                                <span class="score score-social">S:${s.social_score.toFixed(2)}</span>
+                            </div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div>$${s.price.toFixed(2)}</div>
+                            <div style="color:var(--text-secondary);font-size:0.85em;">${(s.confidence*100).toFixed(0)}% conf</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Scan Market
+        async function scanMarket() {
+            document.getElementById('topSignals').innerHTML = '<p>Scanning markets...</p>';
+            const data = await api('scan', 'POST');
+            if (data.success) {
+                currentSignals = data.signals;
+                updateTopSignals(data.signals);
+                updateSignalsTable(data.signals);
+            }
+        }
+
+        function updateSignalsTable(signals) {
+            const tbody = document.getElementById('signalsTable');
+            const rows = Object.values(signals).sort((a, b) => b.confidence - a.confidence);
+
+            if (rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);">No signals</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = rows.map(s => {
+                const signalClass = s.signal.includes('BUY') ? 'signal-buy' : s.signal.includes('SELL') ? 'signal-sell' : 'signal-hold';
+                return `
+                    <tr>
+                        <td><strong>${s.symbol}</strong></td>
+                        <td>$${s.price.toFixed(2)}</td>
+                        <td><span class="signal-badge ${signalClass}">${s.signal}</span></td>
+                        <td>${(s.confidence*100).toFixed(0)}%</td>
+                        <td>
+                            <div class="score-bar">
+                                <span class="score score-tech">T:${s.technical_score.toFixed(2)}</span>
+                                <span class="score score-news">N:${s.news_score.toFixed(2)}</span>
+                                <span class="score score-social">S:${s.social_score.toFixed(2)}</span>
+                            </div>
+                        </td>
+                        <td>$${s.stop_loss.toFixed(2)} / $${s.take_profit.toFixed(2)}</td>
+                        <td>
+                            ${s.signal.includes('BUY') ? `<button class="btn btn-success" onclick="executeTrade('${s.symbol}', 'buy')">Buy</button>` : ''}
+                            ${s.signal.includes('SELL') ? `<button class="btn btn-danger" onclick="executeTrade('${s.symbol}', 'sell')">Sell</button>` : ''}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Auto Trade
+        async function autoTrade() {
+            if (!confirm('Execute all high-confidence signals?')) return;
+            const data = await api('auto-trade', 'POST');
+            alert(data.message);
+            refreshAll();
+        }
+
+        // Execute Trade
+        async function executeTrade(symbol, side) {
+            const data = await api('trade', 'POST', { symbol, side });
+            alert(data.message);
+            refreshAll();
+            refreshPortfolio();
+        }
+
+        // Portfolio
+        async function refreshPortfolio() {
+            const data = await api('portfolio');
+            if (!data.success) return;
+
+            document.getElementById('portfolioCash').textContent = `$${data.cash.toFixed(2)}`;
+            document.getElementById('portfolioPositions').textContent = `$${data.positions_value.toFixed(2)}`;
+
+            const list = document.getElementById('positionsList');
+            if (data.positions.length === 0) {
+                list.innerHTML = '<p style="color:var(--text-secondary);">No open positions</p>';
+                return;
+            }
+
+            list.innerHTML = data.positions.map(p => {
+                const pnl = (p.current_price - p.entry_price) * p.quantity;
+                const pnlPct = ((p.current_price - p.entry_price) / p.entry_price * 100);
+                const pnlClass = pnl >= 0 ? 'positive' : 'negative';
+                return `
+                    <div class="position-card">
+                        <div class="position-header">
+                            <strong>${p.symbol}</strong>
+                            <span class="${pnlClass}">${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPct.toFixed(1)}%)</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;color:var(--text-secondary);font-size:0.85em;">
+                            <span>Qty: ${p.quantity.toFixed(4)}</span>
+                            <span>Entry: $${p.entry_price.toFixed(2)}</span>
+                            <span>Current: $${p.current_price.toFixed(2)}</span>
+                        </div>
+                        <div style="margin-top:10px;">
+                            <button class="btn btn-danger" onclick="closePosition('${p.symbol}')">Close Position</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function closePosition(symbol) {
+            if (!confirm(`Close ${symbol} position?`)) return;
+            await api('trade', 'POST', { symbol, side: 'sell' });
+            refreshPortfolio();
+            refreshAll();
+        }
+
+        async function closeAllPositions() {
+            if (!confirm('Close ALL positions?')) return;
+            await api('close-all', 'POST');
+            refreshPortfolio();
+            refreshAll();
+        }
+
+        // Trades
+        async function loadTrades() {
+            const data = await api('trades');
+            const tbody = document.getElementById('tradesTable');
+
+            if (!data.trades || data.trades.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-secondary);">No trades yet</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.trades.map(t => {
+                const sideClass = t.side === 'BUY' ? 'positive' : 'negative';
+                const pnlClass = t.pnl >= 0 ? 'positive' : 'negative';
+                return `
+                    <tr>
+                        <td>${new Date(t.timestamp).toLocaleString()}</td>
+                        <td><strong>${t.symbol}</strong></td>
+                        <td class="${sideClass}">${t.side}</td>
+                        <td>${t.quantity.toFixed(4)}</td>
+                        <td>$${t.price.toFixed(2)}</td>
+                        <td class="${pnlClass}">${t.side === 'SELL' ? (t.pnl >= 0 ? '+' : '') + '$' + t.pnl.toFixed(2) : '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Settings
+        async function loadSettings() {
+            const data = await api('settings');
+            if (!data.success) return;
+
+            document.getElementById('settingCapital').value = data.initial_capital;
+            document.getElementById('settingRisk').value = data.risk_level;
+            document.getElementById('settingConfidence').value = data.min_confidence * 100;
+            document.getElementById('settingScanInterval').value = data.scan_interval;
+            document.getElementById('settingStocks').value = data.stocks.join(', ');
+            document.getElementById('settingCrypto').value = data.crypto.join(', ');
+            document.getElementById('settingEnableNews').checked = data.enable_news;
+            document.getElementById('settingEnableSocial').checked = data.enable_social;
+        }
+
+        async function saveSettings() {
+            const settings = {
+                initial_capital: document.getElementById('settingCapital').value,
+                risk_level: document.getElementById('settingRisk').value,
+                min_confidence: document.getElementById('settingConfidence').value / 100,
+                scan_interval: document.getElementById('settingScanInterval').value,
+                stocks: document.getElementById('settingStocks').value.split(',').map(s => s.trim()),
+                crypto: document.getElementById('settingCrypto').value.split(',').map(s => s.trim()),
+                enable_news: document.getElementById('settingEnableNews').checked,
+                enable_social: document.getElementById('settingEnableSocial').checked,
+                alpaca_api_key: document.getElementById('settingAlpacaKey').value,
+                alpaca_secret_key: document.getElementById('settingAlpacaSecret').value
+            };
+
+            const data = await api('settings', 'POST', settings);
+            alert(data.message);
+        }
+
+        // Alerts
+        async function loadAlerts() {
+            const data = await api('alerts');
+            const list = document.getElementById('alertsList');
+
+            if (!data.alerts || data.alerts.length === 0) {
+                list.innerHTML = '<p style="color:var(--text-secondary);">No alerts</p>';
+                return;
+            }
+
+            list.innerHTML = data.alerts.map(a => `
+                <div class="alert-item alert-${a.severity}">
+                    <div class="alert-dot"></div>
+                    <div style="flex:1;">
+                        <strong>${a.symbol}</strong>: ${a.message}
+                        <div style="color:var(--text-secondary);font-size:0.8em;">${new Date(a.timestamp).toLocaleString()}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function markAllRead() {
+            await api('alerts/read-all', 'POST');
+            document.getElementById('alertCount').textContent = '0';
+            loadAlerts();
+        }
+
+        // Initialize
+        refreshAll();
+        setInterval(refreshAll, 30000);
+    </script>
+</body>
+</html>
+'''
+
+
+# =============================================================================
+# API ROUTES
+# =============================================================================
+
+@app.route('/')
+def index():
+    return render_template_string(MAIN_TEMPLATE)
+
+
+@app.route('/api/dashboard')
+def api_dashboard():
+    """Dashboard overview"""
+    try:
+        portfolio = engine.get_portfolio_value()
+        stats = db.get_trade_stats()
+        alerts = db.get_alerts(unread_only=True)
+
+        signals = {}
+        if engine.last_signals:
+            for symbol, sig in engine.last_signals.items():
+                signals[symbol] = {
+                    "symbol": symbol,
+                    "signal": sig.signal.value,
+                    "confidence": sig.confidence,
+                    "price": sig.price,
+                    "technical_score": sig.technical_score,
+                    "news_score": sig.news_score,
+                    "social_score": sig.social_score,
+                    "stop_loss": sig.stop_loss,
+                    "take_profit": sig.take_profit
+                }
+
+        return jsonify({
+            "success": True,
+            "portfolio": {
+                "cash": portfolio["cash"],
+                "positions_value": portfolio["positions_value"],
+                "equity": portfolio["equity"],
+                "initial_capital": portfolio["initial_capital"],
+                "total_pnl": portfolio["total_pnl"],
+                "total_pnl_pct": portfolio["total_pnl_pct"],
+                "positions": [{"symbol": p.symbol, "quantity": p.quantity, "entry_price": p.entry_price,
+                               "current_price": p.current_price} for p in portfolio["positions"]]
+            },
+            "stats": stats,
+            "signals": signals,
+            "unread_alerts": len(alerts),
+            "last_scan": engine.last_scan.strftime("%H:%M:%S") if engine.last_scan else None
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/scan', methods=['POST'])
+def api_scan():
+    """Scan market for signals"""
+    try:
+        engine.reload_settings()
+        signals = engine.scan_all()
+
+        result = {}
+        for symbol, sig in signals.items():
+            result[symbol] = {
+                "symbol": symbol,
+                "signal": sig.signal.value,
+                "confidence": sig.confidence,
+                "price": sig.price,
+                "technical_score": sig.technical_score,
+                "news_score": sig.news_score,
+                "social_score": sig.social_score,
+                "reasons": sig.reasons,
+                "stop_loss": sig.stop_loss,
+                "take_profit": sig.take_profit
+            }
+
+        return jsonify({"success": True, "signals": result})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/auto-trade', methods=['POST'])
+def api_auto_trade():
+    """Execute all high-confidence signals"""
+    try:
+        engine.reload_settings()
+        signals = engine.scan_all()
+
+        executed = 0
+        for symbol, sig in signals.items():
+            if sig.confidence >= engine.min_confidence:
+                if sig.signal in [SignalType.BUY, SignalType.STRONG_BUY]:
+                    if engine.execute_buy(symbol, sig):
+                        executed += 1
+
+        return jsonify({"success": True, "message": f"Executed {executed} trades"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/trade', methods=['POST'])
+def api_trade():
+    """Execute a single trade"""
+    try:
+        data = request.json
+        symbol = data.get('symbol')
+        side = data.get('side')
+
+        if side == 'buy':
+            sig = engine.last_signals.get(symbol)
+            if sig:
+                success = engine.execute_buy(symbol, sig)
+                return jsonify({"success": success, "message": f"Bought {symbol}" if success else "Buy failed"})
+        elif side == 'sell':
+            success = engine.execute_sell(symbol)
+            return jsonify({"success": success, "message": f"Sold {symbol}" if success else "Sell failed"})
+
+        return jsonify({"success": False, "message": "Invalid request"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/close-all', methods=['POST'])
+def api_close_all():
+    """Close all positions"""
+    try:
+        positions = db.get_positions()
+        for pos in positions:
+            engine.execute_sell(pos.symbol)
+        return jsonify({"success": True, "message": f"Closed {len(positions)} positions"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/portfolio')
+def api_portfolio():
+    """Get portfolio details"""
+    try:
+        data = engine.get_portfolio_value()
+        return jsonify({
+            "success": True,
+            "cash": data["cash"],
+            "positions_value": data["positions_value"],
+            "equity": data["equity"],
+            "positions": [{
+                "symbol": p.symbol,
+                "quantity": p.quantity,
+                "entry_price": p.entry_price,
+                "current_price": p.current_price,
+                "stop_loss": p.stop_loss,
+                "take_profit": p.take_profit
+            } for p in data["positions"]]
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/trades')
+def api_trades():
+    """Get trade history"""
+    try:
+        trades = db.get_trades(50)
+        return jsonify({
+            "success": True,
+            "trades": [{
+                "symbol": t.symbol,
+                "side": t.side,
+                "quantity": t.quantity,
+                "price": t.price,
+                "pnl": t.pnl,
+                "timestamp": t.timestamp
+            } for t in trades]
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/settings', methods=['GET', 'POST'])
+def api_settings():
+    """Get or update settings"""
+    try:
+        if request.method == 'POST':
+            data = request.json
+            for key, value in data.items():
+                if key in ['stocks', 'crypto']:
+                    db.set_setting(key, json.dumps(value))
+                elif key in ['enable_news', 'enable_social']:
+                    db.set_setting(key, 'true' if value else 'false')
+                else:
+                    db.set_setting(key, str(value))
+
+            engine.reload_settings()
+            return jsonify({"success": True, "message": "Settings saved!"})
+        else:
+            settings = db.get_all_settings()
+            return jsonify({
+                "success": True,
+                "initial_capital": float(settings.get("initial_capital", 100)),
+                "risk_level": settings.get("risk_level", "moderate"),
+                "min_confidence": float(settings.get("min_confidence", 0.65)),
+                "scan_interval": int(settings.get("scan_interval", 5)),
+                "stocks": json.loads(settings.get("stocks", '["NVDA", "SPY", "QQQ"]')),
+                "crypto": json.loads(settings.get("crypto", '["bitcoin", "ethereum"]')),
+                "enable_news": settings.get("enable_news", "true") == "true",
+                "enable_social": settings.get("enable_social", "true") == "true"
+            })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/alerts')
+def api_alerts():
+    """Get alerts"""
+    try:
+        alerts = db.get_alerts()
+        return jsonify({
+            "success": True,
+            "alerts": [{
+                "id": a.id,
+                "type": a.type,
+                "symbol": a.symbol,
+                "message": a.message,
+                "severity": a.severity,
+                "timestamp": a.timestamp,
+                "read": a.read
+            } for a in alerts]
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/alerts/read-all', methods=['POST'])
+def api_mark_alerts_read():
+    """Mark all alerts as read"""
+    try:
+        db.mark_all_alerts_read()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+def run_app(host='0.0.0.0', port=5000, debug=False):
+    """Run the application"""
+    print("\n" + "=" * 60)
+    print("  🏦 SHOPGUARD TRADING PLATFORM")
+    print("=" * 60)
+    print(f"\n  URL: http://localhost:{port}")
+    print("\n  Features:")
+    print("    ✓ Real-time market data")
+    print("    ✓ AI trading signals")
+    print("    ✓ News sentiment analysis")
+    print("    ✓ Social media sentiment")
+    print("    ✓ Portfolio management")
+    print("    ✓ Trade history & analytics")
+    print("\n" + "=" * 60 + "\n")
+
+    app.run(host=host, port=port, debug=debug)
