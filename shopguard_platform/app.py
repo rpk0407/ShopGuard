@@ -366,17 +366,17 @@ MAIN_TEMPLATE = '''
     <!-- Sidebar -->
     <nav class="sidebar">
         <div class="logo">🏦 ShopGuard</div>
-        <div class="nav-item" data-page="assistant" style="background:linear-gradient(135deg, #6366f1, #8b5cf6);color:white;font-weight:bold;">🤖 AI Assistant</div>
-        <div class="nav-item active" data-page="dashboard">📊 Dashboard</div>
-        <div class="nav-item" data-page="signals">🎯 Signals</div>
-        <div class="nav-item" data-page="analysis">🧠 Deep Analysis</div>
-        <div class="nav-item" data-page="opportunities">💡 Opportunities</div>
-        <div class="nav-item" data-page="learn">📚 Learn</div>
-        <div class="nav-item" data-page="portfolio">💰 Portfolio</div>
-        <div class="nav-item" data-page="trades">📜 Trades</div>
-        <div class="nav-item" data-page="settings">⚙️ Settings</div>
+        <div class="nav-item" data-page="assistant" onclick="showPage('assistant')" style="background:linear-gradient(135deg, #6366f1, #8b5cf6);color:white;font-weight:bold;">🤖 AI Assistant</div>
+        <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div>
+        <div class="nav-item" data-page="signals" onclick="showPage('signals')">🎯 Signals</div>
+        <div class="nav-item" data-page="analysis" onclick="showPage('analysis')">🧠 Deep Analysis</div>
+        <div class="nav-item" data-page="opportunities" onclick="showPage('opportunities')">💡 Opportunities</div>
+        <div class="nav-item" data-page="learn" onclick="showPage('learn')">📚 Learn</div>
+        <div class="nav-item" data-page="portfolio" onclick="showPage('portfolio')">💰 Portfolio</div>
+        <div class="nav-item" data-page="trades" onclick="showPage('trades')">📜 Trades</div>
+        <div class="nav-item" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div>
         <div style="flex:1;"></div>
-        <div class="nav-item" data-page="alerts">🔔 Alerts <span id="alertCount" style="background:var(--danger);padding:2px 8px;border-radius:10px;font-size:0.8em;margin-left:auto;">0</span></div>
+        <div class="nav-item" data-page="alerts" onclick="showPage('alerts')">🔔 Alerts <span id="alertCount" style="background:var(--danger);padding:2px 8px;border-radius:10px;font-size:0.8em;margin-left:auto;">0</span></div>
     </nav>
 
     <!-- Main Content -->
@@ -832,61 +832,34 @@ MAIN_TEMPLATE = '''
         let currentSignals = {};
         let autoRefreshInterval = null;
 
-        // Wait for DOM to be ready
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 ShopGuard Platform Initializing...');
-            initNavigation();
-            initTabs();
-            refreshAll();
-            setInterval(refreshAll, 30000);
-            console.log('✅ Platform Ready!');
-        });
-
-        // Navigation
-        function initNavigation() {
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const page = this.dataset.page;
-                    console.log('Navigation clicked:', page);
-                    if (page) showPage(page);
-                });
-            });
-        }
-
-        // Tab filtering
-        function initTabs() {
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.addEventListener('click', function() {
-                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                    this.classList.add('active');
-                });
-            });
-        }
-
+        // ============================================
+        // NAVIGATION - Must be first so onclick works
+        // ============================================
         function showPage(page) {
             console.log('Showing page:', page);
             try {
                 // Remove active from all nav items
-                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                var navItems = document.querySelectorAll('.nav-item');
+                for (var i = 0; i < navItems.length; i++) {
+                    navItems[i].classList.remove('active');
+                }
 
                 // Remove active from all pages
-                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                var pages = document.querySelectorAll('.page');
+                for (var j = 0; j < pages.length; j++) {
+                    pages[j].classList.remove('active');
+                }
 
                 // Add active to clicked nav item
-                const navItem = document.querySelector('[data-page="' + page + '"]');
+                var navItem = document.querySelector('[data-page="' + page + '"]');
                 if (navItem) {
                     navItem.classList.add('active');
-                } else {
-                    console.error('Nav item not found for page:', page);
                 }
 
                 // Show the selected page
-                const pageEl = document.getElementById('page-' + page);
+                var pageEl = document.getElementById('page-' + page);
                 if (pageEl) {
                     pageEl.classList.add('active');
-                } else {
-                    console.error('Page element not found:', 'page-' + page);
                 }
 
                 // Load page-specific data
@@ -898,6 +871,13 @@ MAIN_TEMPLATE = '''
                 console.error('Error showing page:', err);
             }
         }
+
+        // Wait for DOM to be ready for auto-refresh
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('ShopGuard Platform Ready');
+            refreshAll();
+            setInterval(refreshAll, 30000);
+        });
 
         // API Calls with error handling
         async function api(endpoint, method = 'GET', data = null) {
