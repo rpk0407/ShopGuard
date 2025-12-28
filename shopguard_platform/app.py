@@ -14,9 +14,13 @@ from .engine import engine, SignalType
 from .agents.coordinator import coordinator
 from .education.teacher import teacher, LessonCategory
 from .analysis.opportunity import detector, OpportunityType
+from .assistant.brain import TradingAssistant
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
+
+# Initialize assistant
+assistant = TradingAssistant(engine, coordinator, teacher, db)
 
 # Background scanner
 scanner_thread = None
@@ -362,6 +366,7 @@ MAIN_TEMPLATE = '''
     <!-- Sidebar -->
     <nav class="sidebar">
         <div class="logo">🏦 ShopGuard</div>
+        <div class="nav-item" data-page="assistant" style="background:linear-gradient(135deg, #6366f1, #8b5cf6);color:white;font-weight:bold;">🤖 AI Assistant</div>
         <div class="nav-item active" data-page="dashboard">📊 Dashboard</div>
         <div class="nav-item" data-page="signals">🎯 Signals</div>
         <div class="nav-item" data-page="analysis">🧠 Deep Analysis</div>
@@ -376,6 +381,70 @@ MAIN_TEMPLATE = '''
 
     <!-- Main Content -->
     <main class="main">
+        <!-- AI Assistant Page -->
+        <div id="page-assistant" class="page">
+            <div class="header">
+                <h1>🤖 AI Trading Assistant</h1>
+                <span style="color:var(--text-secondary);">Talk to me to control everything</span>
+            </div>
+
+            <div style="display:flex;gap:20px;height:calc(100vh - 150px);">
+                <!-- Chat Area -->
+                <div class="card" style="flex:2;display:flex;flex-direction:column;">
+                    <div id="chatMessages" style="flex:1;overflow-y:auto;padding:15px;background:var(--bg-secondary);border-radius:8px;margin-bottom:15px;">
+                        <div class="chat-message assistant">
+                            <div class="chat-bubble" style="background:var(--accent);padding:15px;border-radius:12px;max-width:80%;margin-bottom:15px;">
+                                <strong>🤖 AI Assistant</strong>
+                                <p style="margin-top:10px;">Hey! I'm your AI Trading Assistant. I can help you:</p>
+                                <ul style="margin:10px 0;padding-left:20px;">
+                                    <li><strong>Trade</strong>: "Buy Bitcoin" or "Sell ETH"</li>
+                                    <li><strong>Analyze</strong>: "Analyze NVDA" for deep analysis</li>
+                                    <li><strong>Learn</strong>: "Explain RSI" or "Teach me risk management"</li>
+                                    <li><strong>Monitor</strong>: "Show my portfolio" or "Find opportunities"</li>
+                                </ul>
+                                <p>Just type naturally - I'll understand!</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;gap:10px;">
+                        <input type="text" id="chatInput" placeholder="Type your message... (e.g., 'Analyze Bitcoin' or 'Show my portfolio')"
+                               style="flex:1;padding:15px;border:1px solid var(--border);border-radius:8px;background:var(--bg-secondary);color:white;font-size:1em;"
+                               onkeypress="if(event.key==='Enter')sendChat()">
+                        <button class="btn btn-primary" onclick="sendChat()" style="padding:15px 25px;">Send 🚀</button>
+                    </div>
+                </div>
+
+                <!-- Quick Actions Sidebar -->
+                <div class="card" style="flex:1;max-width:300px;">
+                    <h4 style="margin-bottom:15px;">⚡ Quick Commands</h4>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        <button class="btn btn-outline" onclick="quickChat('Analyze Bitcoin')" style="text-align:left;">🔬 Analyze Bitcoin</button>
+                        <button class="btn btn-outline" onclick="quickChat('Analyze Ethereum')" style="text-align:left;">🔬 Analyze Ethereum</button>
+                        <button class="btn btn-outline" onclick="quickChat('Show my portfolio')" style="text-align:left;">💰 Show Portfolio</button>
+                        <button class="btn btn-outline" onclick="quickChat('Find opportunities')" style="text-align:left;">💡 Find Opportunities</button>
+                        <button class="btn btn-outline" onclick="quickChat('Scan market')" style="text-align:left;">📡 Scan Market</button>
+                        <button class="btn btn-outline" onclick="quickChat('How am I performing?')" style="text-align:left;">📈 My Performance</button>
+                    </div>
+
+                    <h4 style="margin:20px 0 15px;">📚 Learn</h4>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        <button class="btn btn-outline" onclick="quickChat('Explain RSI')" style="text-align:left;">📊 Explain RSI</button>
+                        <button class="btn btn-outline" onclick="quickChat('Explain position sizing')" style="text-align:left;">📏 Position Sizing</button>
+                        <button class="btn btn-outline" onclick="quickChat('Explain stop loss')" style="text-align:left;">⚠️ Stop Loss</button>
+                        <button class="btn btn-outline" onclick="quickChat('What is FOMO?')" style="text-align:left;">🧠 FOMO & FUD</button>
+                    </div>
+
+                    <h4 style="margin:20px 0 15px;">🔄 Trade</h4>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        <button class="btn btn-success" onclick="quickChat('Buy Bitcoin')" style="text-align:left;">🟢 Buy Bitcoin</button>
+                        <button class="btn btn-success" onclick="quickChat('Buy Ethereum')" style="text-align:left;">🟢 Buy Ethereum</button>
+                        <button class="btn btn-danger" onclick="quickChat('Close all positions')" style="text-align:left;">🔴 Close All</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Dashboard Page -->
         <div id="page-dashboard" class="page active">
             <div class="header">
@@ -1195,6 +1264,77 @@ MAIN_TEMPLATE = '''
             document.getElementById('lessonContent').style.display = 'none';
         }
 
+        // AI Assistant Chat
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            // Add user message
+            addChatMessage('user', message);
+            input.value = '';
+
+            // Show typing indicator
+            const typingId = addChatMessage('assistant', '🤖 Thinking...');
+
+            try {
+                const response = await api('chat', 'POST', { message });
+
+                // Remove typing indicator
+                document.getElementById(typingId).remove();
+
+                if (response.success) {
+                    addChatMessage('assistant', response.response.message, response.response.suggestions);
+
+                    // If action was taken, refresh relevant data
+                    if (response.response.action_taken) {
+                        refreshAll();
+                    }
+                } else {
+                    addChatMessage('assistant', 'Sorry, something went wrong. Please try again.');
+                }
+            } catch (e) {
+                document.getElementById(typingId).remove();
+                addChatMessage('assistant', 'Error: ' + e.message);
+            }
+        }
+
+        function quickChat(message) {
+            document.getElementById('chatInput').value = message;
+            sendChat();
+        }
+
+        function addChatMessage(role, message, suggestions = []) {
+            const container = document.getElementById('chatMessages');
+            const id = 'msg-' + Date.now();
+
+            const isUser = role === 'user';
+            const bgColor = isUser ? 'var(--bg-card)' : 'var(--accent)';
+            const align = isUser ? 'flex-end' : 'flex-start';
+
+            let html = `
+                <div id="${id}" class="chat-message ${role}" style="display:flex;justify-content:${align};margin-bottom:15px;">
+                    <div style="background:${bgColor};padding:15px;border-radius:12px;max-width:80%;">
+                        ${isUser ? '<strong>You</strong>' : '<strong>🤖 AI Assistant</strong>'}
+                        <div style="margin-top:10px;white-space:pre-wrap;">${message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')}</div>
+            `;
+
+            if (suggestions && suggestions.length > 0) {
+                html += '<div style="margin-top:15px;display:flex;flex-wrap:wrap;gap:8px;">';
+                suggestions.forEach(s => {
+                    html += `<button class="btn btn-outline" onclick="quickChat('${s}')" style="font-size:0.85em;padding:5px 10px;">${s}</button>`;
+                });
+                html += '</div>';
+            }
+
+            html += '</div></div>';
+
+            container.innerHTML += html;
+            container.scrollTop = container.scrollHeight;
+
+            return id;
+        }
+
         // Initialize
         refreshAll();
         setInterval(refreshAll, 30000);
@@ -1622,24 +1762,57 @@ def api_agent_teachings():
         return jsonify({"success": False, "error": str(e)})
 
 
+# =============================================================================
+# AI ASSISTANT CHAT API
+# =============================================================================
+
+@app.route('/api/chat', methods=['POST'])
+def api_chat():
+    """
+    Chat with the AI Trading Assistant
+    Natural language interface to control the entire system
+    """
+    try:
+        data = request.json
+        message = data.get('message', '')
+
+        if not message:
+            return jsonify({"success": False, "error": "No message provided"})
+
+        # Process message through assistant
+        response = assistant.process_message(message)
+
+        return jsonify({
+            "success": True,
+            "response": {
+                "message": response.message,
+                "action_taken": response.action_taken,
+                "data": response.data,
+                "suggestions": response.suggestions,
+                "follow_up_prompt": response.follow_up_prompt
+            }
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)})
+
+
 def run_app(host='0.0.0.0', port=5000, debug=False):
     """Run the application"""
     print("\n" + "=" * 60)
     print("  🏦 SHOPGUARD TRADING PLATFORM v2.0")
     print("=" * 60)
     print(f"\n  URL: http://localhost:{port}")
+    print("\n  🤖 AI ASSISTANT - Control everything with natural language!")
+    print("     Just say: 'Buy Bitcoin', 'Analyze ETH', 'Explain RSI'")
     print("\n  CORE FEATURES:")
     print("    ✓ Real-time market data (CoinGecko + Yahoo Finance)")
     print("    ✓ AI trading signals with confidence scores")
     print("    ✓ Auto-trading with stop loss & take profit")
     print("    ✓ Portfolio management & trade history")
-    print("\n  ADVANCED FEATURES (NEW!):")
-    print("    🧠 Multi-Agent Deep Analysis")
-    print("       • Technical Agent (RSI, MACD, Bollinger, Fibonacci)")
-    print("       • News Agent (Deep news research & sentiment)")
-    print("       • Social Agent (Reddit sentiment, FOMO/FUD detection)")
-    print("       • Risk Agent (Position sizing, volatility analysis)")
-    print("       • Fundamental Agent (Market cap, supply dynamics)")
+    print("\n  ADVANCED FEATURES:")
+    print("    🧠 Multi-Agent Deep Analysis (5 specialized agents)")
     print("    💡 Opportunity Detection with full explanations")
     print("    📚 Complete Trading Education System")
     print("    🎯 Recommended hold times and entry/exit points")
