@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Navigation Test - Open this directly in browser</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: sans-serif; background: #0a0a0f; color: white; display: flex; }
+
+        .sidebar {
+            width: 220px;
+            height: 100vh;
+            background: #12121a;
+            padding: 20px;
+            position: fixed;
+        }
+
+        .logo { font-size: 1.5em; font-weight: bold; color: #6366f1; margin-bottom: 30px; }
+
+        .nav-item {
+            padding: 12px 15px;
+            margin-bottom: 5px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #8888aa;
+        }
+
+        .nav-item:hover { background: #1a1a25; color: white; }
+        .nav-item.active { background: #1a1a25; color: white; border-left: 3px solid #6366f1; }
+
+        .main { margin-left: 220px; padding: 20px; flex: 1; }
+
+        .page { display: none; }
+        .page.active { display: block; }
+
+        h1 { margin-bottom: 20px; }
+        .card { background: #1a1a25; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo">🏦 Test Nav</div>
+        <div class="nav-item active" onclick="showPage('dashboard')">📊 Dashboard</div>
+        <div class="nav-item" onclick="showPage('signals')">🎯 Signals</div>
+        <div class="nav-item" onclick="showPage('analysis')">🧠 Analysis</div>
+        <div class="nav-item" onclick="showPage('portfolio')">💰 Portfolio</div>
+        <div class="nav-item" onclick="showPage('settings')">⚙️ Settings</div>
+    </nav>
+
+    <main class="main">
+        <div id="page-dashboard" class="page active">
+            <h1>📊 Dashboard</h1>
+            <div class="card">
+                <h2>This is the Dashboard page</h2>
+                <p>Click on other nav items to switch pages.</p>
+            </div>
+        </div>
+
+        <div id="page-signals" class="page">
+            <h1>🎯 Signals Page</h1>
+            <div class="card">
+                <h2>Trading Signals</h2>
+                <p>If you can see this, navigation works!</p>
+            </div>
+        </div>
+
+        <div id="page-analysis" class="page">
+            <h1>🧠 Analysis Page</h1>
+            <div class="card">
+                <h2>Deep Analysis</h2>
+                <p>This is the analysis page content.</p>
+            </div>
+        </div>
+
+        <div id="page-portfolio" class="page">
+            <h1>💰 Portfolio Page</h1>
+            <div class="card">
+                <h2>Your Portfolio</h2>
+                <p>Portfolio information here.</p>
+            </div>
+        </div>
+
+        <div id="page-settings" class="page">
+            <h1>⚙️ Settings Page</h1>
+            <div class="card">
+                <h2>Settings</h2>
+                <p>Configure your settings here.</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function showPage(page) {
+            // Remove active from all nav items
+            var navItems = document.querySelectorAll('.nav-item');
+            for (var i = 0; i < navItems.length; i++) {
+                navItems[i].classList.remove('active');
+            }
+
+            // Remove active from all pages
+            var pages = document.querySelectorAll('.page');
+            for (var j = 0; j < pages.length; j++) {
+                pages[j].classList.remove('active');
+            }
+
+            // Find and activate the clicked nav item
+            for (var k = 0; k < navItems.length; k++) {
+                if (navItems[k].getAttribute('onclick').includes(page)) {
+                    navItems[k].classList.add('active');
+                    break;
+                }
+            }
+
+            // Show the page
+            var pageEl = document.getElementById('page-' + page);
+            if (pageEl) {
+                pageEl.classList.add('active');
+            }
+        }
+    </script>
+</body>
+</html>

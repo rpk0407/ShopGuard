@@ -1449,7 +1449,13 @@ MAIN_TEMPLATE = '''
 
 @app.route('/')
 def index():
-    return render_template_string(MAIN_TEMPLATE)
+    from flask import make_response
+    response = make_response(render_template_string(MAIN_TEMPLATE))
+    # Prevent browser caching - forces fresh load every time
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
 @app.route('/api/dashboard')
