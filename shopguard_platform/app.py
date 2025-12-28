@@ -366,17 +366,17 @@ MAIN_TEMPLATE = '''
     <!-- Sidebar -->
     <nav class="sidebar">
         <div class="logo">🏦 ShopGuard</div>
-        <div class="nav-item" data-page="assistant" onclick="showPage('assistant')" style="background:linear-gradient(135deg, #6366f1, #8b5cf6);color:white;font-weight:bold;">🤖 AI Assistant</div>
-        <div class="nav-item" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div>
-        <div class="nav-item active" data-page="signals" onclick="showPage('signals')">🎯 Signals</div>
-        <div class="nav-item" data-page="analysis" onclick="showPage('analysis')">🧠 Deep Analysis</div>
-        <div class="nav-item" data-page="opportunities" onclick="showPage('opportunities')">💡 Opportunities</div>
-        <div class="nav-item" data-page="learn" onclick="showPage('learn')">📚 Learn</div>
-        <div class="nav-item" data-page="portfolio" onclick="showPage('portfolio')">💰 Portfolio</div>
-        <div class="nav-item" data-page="trades" onclick="showPage('trades')">📜 Trades</div>
-        <div class="nav-item" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div>
+        <a href="#assistant" class="nav-item" data-page="assistant" style="background:linear-gradient(135deg, #6366f1, #8b5cf6);color:white;font-weight:bold;text-decoration:none;">🤖 AI Assistant</a>
+        <a href="#dashboard" class="nav-item" data-page="dashboard" style="text-decoration:none;">📊 Dashboard</a>
+        <a href="#signals" class="nav-item active" data-page="signals" style="text-decoration:none;">🎯 Signals</a>
+        <a href="#analysis" class="nav-item" data-page="analysis" style="text-decoration:none;">🧠 Deep Analysis</a>
+        <a href="#opportunities" class="nav-item" data-page="opportunities" style="text-decoration:none;">💡 Opportunities</a>
+        <a href="#learn" class="nav-item" data-page="learn" style="text-decoration:none;">📚 Learn</a>
+        <a href="#portfolio" class="nav-item" data-page="portfolio" style="text-decoration:none;">💰 Portfolio</a>
+        <a href="#trades" class="nav-item" data-page="trades" style="text-decoration:none;">📜 Trades</a>
+        <a href="#settings" class="nav-item" data-page="settings" style="text-decoration:none;">⚙️ Settings</a>
         <div style="flex:1;"></div>
-        <div class="nav-item" data-page="alerts" onclick="showPage('alerts')">🔔 Alerts <span id="alertCount" style="background:var(--danger);padding:2px 8px;border-radius:10px;font-size:0.8em;margin-left:auto;">0</span></div>
+        <a href="#alerts" class="nav-item" data-page="alerts" style="text-decoration:none;">🔔 Alerts <span id="alertCount" style="background:var(--danger);padding:2px 8px;border-radius:10px;font-size:0.8em;margin-left:auto;">0</span></a>
     </nav>
 
     <!-- Main Content -->
@@ -833,48 +833,55 @@ MAIN_TEMPLATE = '''
         let autoRefreshInterval = null;
 
         // ============================================
-        // NAVIGATION - Must be first so onclick works
+        // HASH-BASED NAVIGATION
         // ============================================
         function showPage(page) {
             console.log('Showing page:', page);
-            try {
-                // Remove active from all nav items
-                var navItems = document.querySelectorAll('.nav-item');
-                for (var i = 0; i < navItems.length; i++) {
-                    navItems[i].classList.remove('active');
-                }
 
-                // Remove active from all pages
-                var pages = document.querySelectorAll('.page');
-                for (var j = 0; j < pages.length; j++) {
-                    pages[j].classList.remove('active');
-                }
-
-                // Add active to clicked nav item
-                var navItem = document.querySelector('[data-page="' + page + '"]');
-                if (navItem) {
-                    navItem.classList.add('active');
-                }
-
-                // Show the selected page
-                var pageEl = document.getElementById('page-' + page);
-                if (pageEl) {
-                    pageEl.classList.add('active');
-                }
-
-                // Load page-specific data
-                if (page === 'portfolio') refreshPortfolio();
-                if (page === 'trades') loadTrades();
-                if (page === 'settings') loadSettings();
-                if (page === 'alerts') loadAlerts();
-            } catch (err) {
-                console.error('Error showing page:', err);
+            // Remove active from all nav items
+            var navItems = document.querySelectorAll('.nav-item');
+            for (var i = 0; i < navItems.length; i++) {
+                navItems[i].classList.remove('active');
             }
+
+            // Remove active from all pages
+            var pages = document.querySelectorAll('.page');
+            for (var j = 0; j < pages.length; j++) {
+                pages[j].classList.remove('active');
+            }
+
+            // Add active to clicked nav item
+            var navItem = document.querySelector('[data-page="' + page + '"]');
+            if (navItem) {
+                navItem.classList.add('active');
+            }
+
+            // Show the selected page
+            var pageEl = document.getElementById('page-' + page);
+            if (pageEl) {
+                pageEl.classList.add('active');
+            }
+
+            // Load page-specific data
+            if (page === 'portfolio') refreshPortfolio();
+            if (page === 'trades') loadTrades();
+            if (page === 'settings') loadSettings();
+            if (page === 'alerts') loadAlerts();
         }
 
-        // Wait for DOM to be ready for auto-refresh
-        document.addEventListener('DOMContentLoaded', function() {
+        // Handle hash changes for navigation
+        function handleHashChange() {
+            var hash = window.location.hash.replace('#', '') || 'signals';
+            showPage(hash);
+        }
+
+        // Listen for hash changes
+        window.addEventListener('hashchange', handleHashChange);
+
+        // Initialize on page load
+        window.addEventListener('load', function() {
             console.log('ShopGuard Platform Ready');
+            handleHashChange();
             refreshAll();
             setInterval(refreshAll, 30000);
         });
