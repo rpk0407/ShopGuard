@@ -351,9 +351,14 @@ MAIN_TEMPLATE = '''
             color: var(--text-primary);
         }
 
-        /* Page sections */
+        /* Page sections - CSS-only navigation using :target */
         .page { display: none; }
+        .page:target { display: block; }
         .page.active { display: block; }
+
+        /* Hide active page when another is targeted */
+        .page.active:not(:target) { display: none; }
+        .page:target ~ .page.active { display: none; }
 
         /* Responsive */
         @media (max-width: 768px) {
@@ -382,7 +387,7 @@ MAIN_TEMPLATE = '''
     <!-- Main Content -->
     <main class="main">
         <!-- AI Assistant Page -->
-        <div id="page-assistant" class="page">
+        <div id="assistant" class="page">
             <div class="header">
                 <h1>🤖 AI Trading Assistant</h1>
                 <span style="color:var(--text-secondary);">Talk to me to control everything</span>
@@ -446,7 +451,7 @@ MAIN_TEMPLATE = '''
         </div>
 
         <!-- Dashboard Page -->
-        <div id="page-dashboard" class="page">
+        <div id="dashboard" class="page">
             <div class="header">
                 <h1>Dashboard</h1>
                 <div class="header-actions">
@@ -502,7 +507,7 @@ MAIN_TEMPLATE = '''
         </div>
 
         <!-- Signals Page -->
-        <div id="page-signals" class="page active">
+        <div id="signals" class="page active">
             <div class="header">
                 <h1>Trading Signals</h1>
                 <button class="btn btn-primary" onclick="scanMarket()">🔍 Scan All Assets</button>
@@ -537,7 +542,7 @@ MAIN_TEMPLATE = '''
         </div>
 
         <!-- Portfolio Page -->
-        <div id="page-portfolio" class="page">
+        <div id="portfolio" class="page">
             <div class="header">
                 <h1>Portfolio</h1>
                 <button class="btn btn-outline" onclick="refreshPortfolio()">🔄 Refresh Prices</button>
@@ -563,7 +568,7 @@ MAIN_TEMPLATE = '''
         </div>
 
         <!-- Trades Page -->
-        <div id="page-trades" class="page">
+        <div id="trades" class="page">
             <div class="header">
                 <h1>Trade History</h1>
             </div>
@@ -590,7 +595,7 @@ MAIN_TEMPLATE = '''
         </div>
 
         <!-- Settings Page -->
-        <div id="page-settings" class="page">
+        <div id="settings" class="page">
             <div class="header">
                 <h1>Settings</h1>
                 <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
@@ -662,7 +667,7 @@ MAIN_TEMPLATE = '''
         </div>
 
         <!-- Alerts Page -->
-        <div id="page-alerts" class="page">
+        <div id="alerts" class="page">
             <div class="header">
                 <h1>Alerts</h1>
                 <button class="btn btn-outline" onclick="markAllRead()">✓ Mark All Read</button>
@@ -676,7 +681,7 @@ MAIN_TEMPLATE = '''
         </div>
 
         <!-- Deep Analysis Page -->
-        <div id="page-analysis" class="page">
+        <div id="analysis" class="page">
             <div class="header">
                 <h1>🧠 Deep Analysis</h1>
                 <div class="header-actions">
@@ -765,7 +770,7 @@ MAIN_TEMPLATE = '''
         </div>
 
         <!-- Opportunities Page -->
-        <div id="page-opportunities" class="page">
+        <div id="opportunities" class="page">
             <div class="header">
                 <h1>💡 Trading Opportunities</h1>
                 <button class="btn btn-primary" onclick="scanOpportunities()">🔍 Scan All Assets</button>
@@ -784,7 +789,7 @@ MAIN_TEMPLATE = '''
         </div>
 
         <!-- Learn Page -->
-        <div id="page-learn" class="page">
+        <div id="learn" class="page">
             <div class="header">
                 <h1>📚 Trading Education</h1>
             </div>
@@ -856,8 +861,8 @@ MAIN_TEMPLATE = '''
                 navItem.classList.add('active');
             }
 
-            // Show the selected page
-            var pageEl = document.getElementById('page-' + page);
+            // Show the selected page (IDs now match hash directly)
+            var pageEl = document.getElementById(page);
             if (pageEl) {
                 pageEl.classList.add('active');
             }
