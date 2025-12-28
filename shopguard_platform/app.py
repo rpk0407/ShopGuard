@@ -367,8 +367,8 @@ MAIN_TEMPLATE = '''
     <nav class="sidebar">
         <div class="logo">🏦 ShopGuard</div>
         <div class="nav-item" data-page="assistant" onclick="showPage('assistant')" style="background:linear-gradient(135deg, #6366f1, #8b5cf6);color:white;font-weight:bold;">🤖 AI Assistant</div>
-        <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div>
-        <div class="nav-item" data-page="signals" onclick="showPage('signals')">🎯 Signals</div>
+        <div class="nav-item" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div>
+        <div class="nav-item active" data-page="signals" onclick="showPage('signals')">🎯 Signals</div>
         <div class="nav-item" data-page="analysis" onclick="showPage('analysis')">🧠 Deep Analysis</div>
         <div class="nav-item" data-page="opportunities" onclick="showPage('opportunities')">💡 Opportunities</div>
         <div class="nav-item" data-page="learn" onclick="showPage('learn')">📚 Learn</div>
@@ -446,7 +446,7 @@ MAIN_TEMPLATE = '''
         </div>
 
         <!-- Dashboard Page -->
-        <div id="page-dashboard" class="page active">
+        <div id="page-dashboard" class="page">
             <div class="header">
                 <h1>Dashboard</h1>
                 <div class="header-actions">
@@ -502,7 +502,7 @@ MAIN_TEMPLATE = '''
         </div>
 
         <!-- Signals Page -->
-        <div id="page-signals" class="page">
+        <div id="page-signals" class="page active">
             <div class="header">
                 <h1>Trading Signals</h1>
                 <button class="btn btn-primary" onclick="scanMarket()">🔍 Scan All Assets</button>
@@ -836,7 +836,6 @@ MAIN_TEMPLATE = '''
         // NAVIGATION - Must be first so onclick works
         // ============================================
         function showPage(page) {
-            alert('showPage called with: ' + page);  // DEBUG - remove after testing
             console.log('Showing page:', page);
             try {
                 // Remove active from all nav items
