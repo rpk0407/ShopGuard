@@ -836,6 +836,7 @@ MAIN_TEMPLATE = '''
         // NAVIGATION - Must be first so onclick works
         // ============================================
         function showPage(page) {
+            alert('showPage called with: ' + page);  // DEBUG - remove after testing
             console.log('Showing page:', page);
             try {
                 // Remove active from all nav items
