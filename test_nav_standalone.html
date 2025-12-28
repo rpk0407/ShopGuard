@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Navigation Test</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #1a1a2e; color: white; }
+
+        .sidebar {
+            position: fixed; left: 0; top: 0;
+            width: 200px; height: 100vh;
+            background: #16213e; padding: 20px;
+        }
+
+        .logo { font-size: 20px; font-weight: bold; color: #e94560; margin-bottom: 30px; }
+
+        .nav-item {
+            padding: 12px; margin: 5px 0; border-radius: 8px;
+            cursor: pointer; color: #aaa;
+        }
+        .nav-item:hover { background: #1a1a2e; color: white; }
+        .nav-item.active { background: #e94560; color: white; }
+
+        .main { margin-left: 220px; padding: 30px; }
+
+        .page { display: none; }
+        .page.active { display: block; }
+
+        h1 { margin-bottom: 20px; }
+        .card { background: #16213e; padding: 20px; border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">TEST NAV</div>
+        <div class="nav-item active" onclick="showPage('dashboard')">Dashboard</div>
+        <div class="nav-item" onclick="showPage('signals')">Signals</div>
+        <div class="nav-item" onclick="showPage('portfolio')">Portfolio</div>
+        <div class="nav-item" onclick="showPage('settings')">Settings</div>
+    </div>
+
+    <div class="main">
+        <div id="page-dashboard" class="page active">
+            <h1>DASHBOARD PAGE</h1>
+            <div class="card">
+                <p>This is the dashboard. Click other nav items to switch pages.</p>
+                <p style="margin-top:20px; color: #e94560;">If you can see other pages when you click, navigation works!</p>
+            </div>
+        </div>
+
+        <div id="page-signals" class="page">
+            <h1>SIGNALS PAGE</h1>
+            <div class="card">
+                <p>SUCCESS! You navigated to Signals page!</p>
+            </div>
+        </div>
+
+        <div id="page-portfolio" class="page">
+            <h1>PORTFOLIO PAGE</h1>
+            <div class="card">
+                <p>SUCCESS! You navigated to Portfolio page!</p>
+            </div>
+        </div>
+
+        <div id="page-settings" class="page">
+            <h1>SETTINGS PAGE</h1>
+            <div class="card">
+                <p>SUCCESS! You navigated to Settings page!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showPage(pageName) {
+            alert('showPage called: ' + pageName);
+
+            // Remove active from all nav items
+            var navs = document.querySelectorAll('.nav-item');
+            for (var i = 0; i < navs.length; i++) {
+                navs[i].classList.remove('active');
+                if (navs[i].getAttribute('onclick').indexOf(pageName) > -1) {
+                    navs[i].classList.add('active');
+                }
+            }
+
+            // Hide all pages
+            var pages = document.querySelectorAll('.page');
+            for (var j = 0; j < pages.length; j++) {
+                pages[j].classList.remove('active');
+            }
+
+            // Show selected page
+            var page = document.getElementById('page-' + pageName);
+            if (page) {
+                page.classList.add('active');
+            }
+        }
+    </script>
+</body>
+</html>
