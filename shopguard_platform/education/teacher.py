@@ -703,6 +703,675 @@ Look for:
             related_lessons=["strat_02", "tech_02", "risk_01"]
         )
 
+        # ========== FUNDAMENTAL ANALYSIS ==========
+        lessons["fund_01"] = Lesson(
+            id="fund_01",
+            title="What is Fundamental Analysis?",
+            category=LessonCategory.FUNDAMENTAL,
+            difficulty="beginner",
+            content="""
+# What is Fundamental Analysis?
+
+Fundamental analysis studies what drives an asset's true value.
+While technical analysis looks at charts, fundamentals look at the WHY.
+
+## Stocks: What to Analyze
+
+### 1. Earnings (Most Important)
+**EPS (Earnings Per Share)**: Profit divided by shares
+- Growing EPS = Company becoming more profitable
+- Declining EPS = Warning sign
+
+**P/E Ratio (Price to Earnings)**
+- P/E = Stock Price / EPS
+- P/E of 20 means paying $20 for $1 of earnings
+- High P/E = Expensive OR high growth expected
+- Low P/E = Cheap OR problems expected
+
+### 2. Revenue Growth
+Is the company selling more each quarter?
+- Revenue growth > 10%/year is good
+- Negative growth is concerning
+
+### 3. Profit Margins
+How much profit per dollar of sales?
+- Gross margin > 40% is healthy
+- Operating margin > 15% is strong
+
+### 4. Debt Levels
+**Debt-to-Equity Ratio**
+- Under 1 = Conservative
+- Over 2 = Risky (too much debt)
+
+## Crypto: What to Analyze
+
+### 1. Utility
+What problem does it solve?
+- Real use case = Long-term value
+- No use case = Speculation only
+
+### 2. Tokenomics
+- Total supply (capped vs infinite)
+- Inflation rate
+- Token burns
+
+### 3. Adoption
+- Daily active users
+- Transaction volume
+- Developer activity
+
+### 4. Team & Backing
+- Who created it?
+- Major investors/partners?
+- Track record?
+
+## Combining with Technicals
+
+Best approach: Use fundamentals to decide WHAT to trade,
+use technicals to decide WHEN to trade.
+
+1. Find fundamentally strong assets
+2. Wait for technical entry signal
+3. Manage risk properly
+""",
+            key_takeaways=[
+                "Fundamentals answer WHY an asset should move",
+                "For stocks: earnings, revenue, and debt matter most",
+                "For crypto: utility, tokenomics, and adoption",
+                "Combine fundamentals (what) with technicals (when)"
+            ],
+            related_lessons=["fund_02", "tech_01"]
+        )
+
+        lessons["fund_02"] = Lesson(
+            id="fund_02",
+            title="Reading Financial Statements",
+            category=LessonCategory.FUNDAMENTAL,
+            difficulty="intermediate",
+            content="""
+# Reading Financial Statements
+
+Every public company releases quarterly financial statements.
+Here's how to read them quickly.
+
+## The Three Statements
+
+### 1. Income Statement (Profit & Loss)
+Shows revenue and expenses over a period.
+
+**Key Lines:**
+- Revenue (Sales): Total money coming in
+- Gross Profit: Revenue - Cost of goods
+- Operating Income: Profit from main business
+- Net Income: Final profit after everything
+
+**What to Look For:**
+- Revenue growing quarter over quarter
+- Profit margins stable or improving
+- Net income positive and growing
+
+### 2. Balance Sheet
+Snapshot of what company owns and owes.
+
+**Assets** (What they own):
+- Cash & equivalents
+- Inventory
+- Property & equipment
+
+**Liabilities** (What they owe):
+- Short-term debt
+- Long-term debt
+- Accounts payable
+
+**Equity** = Assets - Liabilities
+
+**What to Look For:**
+- Cash increasing
+- Debt under control
+- Equity growing
+
+### 3. Cash Flow Statement
+Where cash actually goes.
+
+**Operating Cash Flow**: Cash from business
+**Investing Cash Flow**: Buying/selling assets
+**Financing Cash Flow**: Debt/equity transactions
+
+**Free Cash Flow** = Operating - Capital Expenditures
+This is the real money available.
+
+## Quick Analysis Checklist
+
+For any stock, check:
+1. Revenue growth (>10% good)
+2. Profit margins (stable/improving)
+3. Debt/Equity ratio (<1 safe)
+4. Free cash flow (positive)
+5. EPS growth (>15% excellent)
+
+## Where to Find This Data
+
+- Company investor relations page
+- SEC EDGAR (official filings)
+- Yahoo Finance / Google Finance
+- Seeking Alpha
+""",
+            key_takeaways=[
+                "Income statement shows profitability",
+                "Balance sheet shows financial health",
+                "Cash flow shows real money movement",
+                "Focus on trends, not single numbers"
+            ],
+            related_lessons=["fund_01", "stocks_01"]
+        )
+
+        # ========== STOCK SPECIFIC ==========
+        lessons["stocks_01"] = Lesson(
+            id="stocks_01",
+            title="Stock Market Basics",
+            category=LessonCategory.STOCKS,
+            difficulty="beginner",
+            content="""
+# Stock Market Basics
+
+Stocks represent ownership in companies.
+Understanding the basics is essential.
+
+## What is a Stock?
+
+A stock (or share) is a piece of ownership in a company.
+
+**Example:**
+- Apple has ~16 billion shares outstanding
+- Owning 100 shares = Tiny percentage of Apple
+- You share in profits and growth
+
+## Stock Market Hours
+
+**US Markets:**
+- Regular: 9:30 AM - 4:00 PM Eastern
+- Pre-market: 4:00 AM - 9:30 AM
+- After-hours: 4:00 PM - 8:00 PM
+
+**Important Times:**
+- 9:30-10:30 AM: High volatility (opening)
+- 11:30-1:00 PM: Lunch lull (low volume)
+- 3:00-4:00 PM: Power hour (closing moves)
+
+## Types of Stocks
+
+### By Size (Market Cap)
+- **Large Cap** (>$10B): Apple, Microsoft, Google
+  - More stable, lower risk
+  - Good for beginners
+
+- **Mid Cap** ($2-10B): Growing companies
+  - More volatile
+  - Higher growth potential
+
+- **Small Cap** (<$2B): Smaller companies
+  - Very volatile
+  - Highest risk/reward
+
+### By Sector
+Technology, Healthcare, Finance, Energy, Consumer, etc.
+Different sectors perform well in different economic conditions.
+
+## Key Concepts
+
+### Dividends
+Some stocks pay quarterly cash to shareholders.
+- Dividend Yield = Annual dividend / Stock price
+- 2-4% yield is typical
+
+### Stock Splits
+Company divides shares to lower price.
+- 4:1 split: 1 share at $400 becomes 4 at $100
+- Total value unchanged
+
+### Earnings Reports
+Companies report quarterly (4x per year).
+- Stock often moves 5-15% on earnings
+- "Earnings season" is high volatility
+
+## Starting with $100
+
+With small capital, focus on:
+1. **Fractional shares**: Buy $20 of expensive stocks
+2. **ETFs**: Instant diversification (SPY, QQQ)
+3. **1-2 positions max**: Don't over-diversify
+4. **Learn first**: Use paper trading
+""",
+            key_takeaways=[
+                "Stocks are ownership shares in companies",
+                "Market hours are 9:30 AM - 4:00 PM Eastern",
+                "Different cap sizes have different risk levels",
+                "With $100, use fractional shares and focus on learning"
+            ],
+            related_lessons=["stocks_02", "basics_01"]
+        )
+
+        lessons["stocks_02"] = Lesson(
+            id="stocks_02",
+            title="Trading ETFs for Beginners",
+            category=LessonCategory.STOCKS,
+            difficulty="beginner",
+            content="""
+# Trading ETFs for Beginners
+
+ETFs (Exchange-Traded Funds) are the best way to start.
+They're baskets of stocks that trade like single stocks.
+
+## Why ETFs for Beginners?
+
+### 1. Instant Diversification
+One ETF = Many stocks
+- SPY holds 500 companies
+- If one fails, others balance it out
+
+### 2. Lower Risk
+Can't go to zero (unlike single stocks)
+Slower moves = Easier to manage
+
+### 3. Lower Cost
+No need to buy multiple stocks
+Often lower fees than mutual funds
+
+## Essential ETFs to Know
+
+### Broad Market
+- **SPY**: S&P 500 (500 largest US companies)
+- **QQQ**: NASDAQ-100 (100 largest tech stocks)
+- **IWM**: Russell 2000 (small caps)
+- **VTI**: Total US stock market
+
+### Sector ETFs
+- **XLK**: Technology
+- **XLF**: Financials
+- **XLE**: Energy
+- **XLV**: Healthcare
+
+### Leveraged (ADVANCED - Be Careful!)
+- **TQQQ**: 3x NASDAQ (triple the moves)
+- **SQQQ**: -3x NASDAQ (inverse)
+These are for SHORT-TERM only. They decay over time.
+
+## Trading Strategy for $100
+
+### Simple SPY/QQQ Strategy
+
+1. **Trend Check** (Daily Chart)
+   - Price above 20 EMA = Uptrend (look to buy)
+   - Price below 20 EMA = Downtrend (stay out or short)
+
+2. **Entry** (4H Chart)
+   - Wait for pullback to 20 EMA in uptrend
+   - RSI approaching 40 (not oversold yet)
+   - Buy on bounce confirmation
+
+3. **Position Size**
+   - Risk 2% ($2 with $100 account)
+   - Stop loss 2% below entry
+   - Position = $100 (full account in one ETF is OK)
+
+4. **Exit**
+   - Stop loss if trade goes wrong
+   - Take profit at 4%+ or when RSI > 70
+
+### Why This Works
+
+- SPY/QQQ trend most of the time
+- Pullbacks in uptrends are buying opportunities
+- Stops protect from crashes
+- 2:1+ reward/risk builds account over time
+""",
+            key_takeaways=[
+                "ETFs provide instant diversification",
+                "SPY and QQQ are ideal for beginners",
+                "Avoid leveraged ETFs until experienced",
+                "Trade pullbacks in uptrends for best results"
+            ],
+            related_lessons=["stocks_01", "strat_01", "risk_01"]
+        )
+
+        # ========== ADVANCED ==========
+        lessons["adv_01"] = Lesson(
+            id="adv_01",
+            title="Building Your Trading System",
+            category=LessonCategory.ADVANCED,
+            difficulty="advanced",
+            content="""
+# Building Your Trading System
+
+A trading system removes emotion and creates consistency.
+This is how professionals trade.
+
+## What is a Trading System?
+
+A complete set of rules that tells you:
+1. WHAT to trade
+2. WHEN to enter
+3. WHEN to exit
+4. HOW MUCH to risk
+
+## System Components
+
+### 1. Market Selection
+Which assets will you trade?
+
+For $100 account, focus on:
+- 2-3 assets maximum
+- Liquid markets (SPY, QQQ, BTC, ETH)
+- Assets you understand
+
+### 2. Entry Rules
+Specific conditions that MUST be met.
+
+**Example Entry Rules:**
+1. Daily trend is up (price > 50 SMA)
+2. 4H RSI is below 40
+3. Price touches 20 EMA
+4. Bullish candle forms
+ALL conditions must be true = Entry
+
+### 3. Exit Rules
+When to close positions.
+
+**Stop Loss Rules:**
+- Maximum 3% from entry
+- Below recent swing low
+- Never move stop further from entry
+
+**Take Profit Rules:**
+- Minimum 2:1 reward/risk
+- Scale out: 50% at 2:1, 50% at 3:1
+- Trail stop after 2:1 reached
+
+### 4. Position Sizing Rules
+How much per trade.
+
+- Risk 1-2% of account per trade
+- Calculate position from stop distance
+- Never exceed 3 open positions
+
+## System Testing
+
+Before trading real money:
+
+### 1. Backtest
+Look at historical charts.
+Would your rules have worked?
+
+### 2. Paper Trade
+Trade your system with fake money.
+Minimum 20 trades before going live.
+
+### 3. Track Results
+Win rate, average win, average loss.
+Expectancy = (Win% × AvgWin) - (Loss% × AvgLoss)
+Must be positive!
+
+## Example System
+
+**The Pullback Trend System**
+
+Asset: SPY or QQQ
+Timeframes: Daily (trend), 4H (entry)
+
+Entry Rules:
+1. Daily close > 20 EMA (uptrend)
+2. 4H RSI crosses above 35 (was oversold)
+3. 4H candle closes above previous candle high
+
+Exit Rules:
+- Stop: Below 4H swing low
+- Target: 2x stop distance
+
+Position Size:
+- Risk 2% per trade
+
+This is a complete, tradeable system.
+""",
+            key_takeaways=[
+                "A system removes emotion from trading",
+                "Must have entry, exit, and sizing rules",
+                "Backtest and paper trade before real money",
+                "Consistency beats perfection"
+            ],
+            related_lessons=["adv_02", "strat_01", "risk_01"]
+        )
+
+        lessons["adv_02"] = Lesson(
+            id="adv_02",
+            title="Trading Journal & Performance Analysis",
+            category=LessonCategory.ADVANCED,
+            difficulty="advanced",
+            content="""
+# Trading Journal & Performance Analysis
+
+The difference between amateurs and professionals:
+Professionals track everything.
+
+## Why Keep a Trading Journal?
+
+### 1. Find Your Leaks
+Where are you losing money unnecessarily?
+- Entries too early?
+- Stops too tight?
+- Not taking profits?
+
+### 2. Improve Over Time
+Can't improve what you don't measure.
+
+### 3. Stay Disciplined
+Writing forces you to follow rules.
+
+## What to Record
+
+### For Every Trade:
+
+**Before Entry:**
+- Date and time
+- Asset and direction (long/short)
+- Reason for entry (what rules were met?)
+- Entry price, stop loss, target
+
+**After Exit:**
+- Exit price and date
+- Result (win/loss, dollar amount, %)
+- Did you follow your rules?
+- What did you learn?
+
+**Emotional State:**
+- How did you feel entering?
+- Any FOMO or fear?
+- Were you patient or impulsive?
+
+## Key Metrics to Track
+
+### 1. Win Rate
+Wins / Total Trades × 100
+
+- 40-50% is normal for trend traders
+- 60%+ requires small wins (scalping)
+
+### 2. Risk/Reward Ratio
+Average Win / Average Loss
+
+- 2:1 minimum for trend trading
+- 1.5:1 acceptable with 60%+ win rate
+
+### 3. Expectancy
+Expected profit per trade
+
+Expectancy = (Win% × AvgWin) - (Loss% × AvgLoss)
+
+**Example:**
+- Win rate: 45%
+- Average win: $6
+- Average loss: $3
+
+Expectancy = (0.45 × $6) - (0.55 × $3)
+           = $2.70 - $1.65
+           = $1.05 per trade
+
+You expect to make $1.05 for every trade (on average).
+
+### 4. Maximum Drawdown
+Largest peak-to-trough decline.
+
+- Under 10% = Excellent
+- 10-20% = Acceptable
+- Over 20% = Review your system
+
+### 5. Profit Factor
+Gross Wins / Gross Losses
+
+- 1.5+ = Good system
+- 2.0+ = Excellent system
+- Under 1.0 = Losing system
+
+## Weekly Review Process
+
+Every weekend:
+
+1. **List all trades**
+2. **Calculate metrics**
+3. **Identify patterns:**
+   - Best performing setups
+   - Worst performing setups
+   - Time of day patterns
+   - Emotional triggers
+4. **Make ONE improvement**
+   - Don't change everything at once
+   - Small tweaks compound over time
+
+## The Path to Consistency
+
+Month 1-3: Focus on following rules
+Month 4-6: Refine entries
+Month 7-12: Optimize position sizing
+
+Patience. This takes time.
+""",
+            key_takeaways=[
+                "Track every trade with full details",
+                "Calculate win rate, R:R, and expectancy",
+                "Weekly reviews find patterns and leaks",
+                "Improve one thing at a time"
+            ],
+            related_lessons=["adv_01", "psych_01"]
+        )
+
+        # ========== MORE TECHNICAL ==========
+        lessons["tech_03"] = Lesson(
+            id="tech_03",
+            title="RSI - The Momentum Indicator",
+            category=LessonCategory.TECHNICAL,
+            difficulty="intermediate",
+            content="""
+# RSI - The Momentum Indicator
+
+RSI (Relative Strength Index) measures momentum.
+It's one of the most useful indicators.
+
+## What is RSI?
+
+RSI oscillates between 0 and 100.
+It measures the speed and change of price movements.
+
+**Formula** (calculated automatically):
+RSI = 100 - (100 / (1 + RS))
+RS = Average Gain / Average Loss (over 14 periods)
+
+## Key Levels
+
+### Overbought: Above 70
+- Price has risen quickly
+- May be due for a pullback
+- NOT a sell signal alone
+
+### Oversold: Below 30
+- Price has fallen quickly
+- May be due for a bounce
+- NOT a buy signal alone
+
+### Neutral: 40-60
+- No strong momentum either way
+
+## How to Use RSI
+
+### 1. Overbought/Oversold in Trends
+
+**In Uptrends:**
+- Oversold (RSI < 35) = Buying opportunity
+- Overbought (RSI > 70) = Take some profit, don't short
+
+**In Downtrends:**
+- Overbought (RSI > 65) = Shorting opportunity
+- Oversold (RSI < 30) = Cover shorts, don't buy
+
+### 2. Divergences
+
+**Bullish Divergence:**
+Price makes lower low, RSI makes higher low.
+→ Momentum weakening, potential reversal up
+
+**Bearish Divergence:**
+Price makes higher high, RSI makes lower high.
+→ Momentum weakening, potential reversal down
+
+### 3. RSI Range Shifts
+
+In strong uptrends:
+- RSI often stays between 40-80
+- 40 becomes support instead of 30
+
+In strong downtrends:
+- RSI often stays between 20-60
+- 60 becomes resistance instead of 70
+
+## Trading with RSI
+
+### Pullback Entry Strategy
+
+1. Confirm uptrend (price > 50 SMA)
+2. Wait for RSI to drop below 40
+3. Buy when RSI crosses back above 40
+4. Stop below recent swing low
+5. Target previous high or 2:1 R/R
+
+### Divergence Strategy
+
+1. Spot divergence on 4H chart
+2. Wait for confirmation candle
+3. Enter after break of short-term resistance
+4. Stop below the low of divergence
+5. Target based on structure
+
+## RSI Settings
+
+**Standard: 14 periods**
+- Good for swing trading
+- Not too sensitive
+
+**7 periods (faster):**
+- More signals
+- More false signals
+
+**21 periods (slower):**
+- Fewer signals
+- More reliable
+""",
+            key_takeaways=[
+                "RSI above 70 is overbought, below 30 is oversold",
+                "Use RSI with trend, not against it",
+                "Divergences warn of potential reversals",
+                "RSI works best for entry timing, not trend direction"
+            ],
+            related_lessons=["tech_01", "tech_02", "strat_01"]
+        )
+
         return lessons
 
     def get_lesson(self, lesson_id: str) -> Optional[Lesson]:

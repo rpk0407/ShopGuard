@@ -1485,22 +1485,62 @@ MAIN_TEMPLATE = '''
             }
         }
 
-        // Education
+        // Education - Simple Markdown to HTML converter
+        function mdToHtml(md) {
+            return md
+                .replace(/^### (.*$)/gim, '<h4>$1</h4>')
+                .replace(/^## (.*$)/gim, '<h3 style="color:var(--accent);margin-top:20px;">$1</h3>')
+                .replace(/^# (.*$)/gim, '<h2 style="color:var(--accent);margin-top:25px;">$1</h2>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/^\- (.*$)/gim, '<li>$1</li>')
+                .replace(/^(\d+)\. (.*$)/gim, '<li>$2</li>')
+                .replace(/\n\n/g, '</p><p style="margin:10px 0;">')
+                .replace(/\n/g, '<br>');
+        }
+
         async function showLessonCategory(category) {
-            const data = await api(`education/${category}`);
-            if (data.success && data.lessons.length > 0) {
-                document.getElementById('lessonContent').style.display = 'block';
-                let html = '<h2>' + category.toUpperCase() + ' LESSONS</h2><br>';
+            const contentEl = document.getElementById('lessonContent');
+            const textEl = document.getElementById('lessonText');
+
+            // Show loading
+            contentEl.style.display = 'block';
+            textEl.innerHTML = '<p style="text-align:center;">Loading lessons...</p>';
+
+            try {
+                const data = await api('education/' + category);
+
+                if (!data.success) {
+                    textEl.innerHTML = '<p style="color:var(--danger);">Error loading lessons: ' + (data.error || 'Unknown error') + '</p>';
+                    return;
+                }
+
+                if (!data.lessons || data.lessons.length === 0) {
+                    textEl.innerHTML = '<p style="color:var(--warning);">No lessons available for this category yet. Coming soon!</p>';
+                    return;
+                }
+
+                let html = '<h2 style="color:var(--accent);border-bottom:2px solid var(--accent);padding-bottom:10px;">' +
+                    category.toUpperCase().replace('_', ' ') + ' - ' + data.lessons.length + ' Lessons</h2>';
+
                 data.lessons.forEach((lesson, i) => {
-                    html += `<div style="margin-bottom:30px;"><h3>${i+1}. ${lesson.title}</h3>${lesson.content}<br><br>`;
-                    if (lesson.key_takeaways) {
-                        html += '<strong>Key Takeaways:</strong><ul>';
-                        lesson.key_takeaways.forEach(t => html += '<li>' + t + '</li>');
-                        html += '</ul>';
+                    html += '<div style="margin:30px 0;padding:20px;background:var(--bg-secondary);border-radius:10px;border-left:4px solid var(--accent);">';
+                    html += '<h3 style="margin-bottom:15px;">Lesson ' + (i+1) + ': ' + lesson.title + '</h3>';
+                    html += '<span style="background:var(--accent);color:white;padding:3px 10px;border-radius:4px;font-size:0.8em;">' + lesson.difficulty.toUpperCase() + '</span>';
+                    html += '<div style="margin-top:20px;line-height:1.8;">' + mdToHtml(lesson.content) + '</div>';
+
+                    if (lesson.key_takeaways && lesson.key_takeaways.length > 0) {
+                        html += '<div style="margin-top:20px;padding:15px;background:var(--bg-card);border-radius:8px;">';
+                        html += '<h4 style="color:var(--success);margin-bottom:10px;">📌 Key Takeaways</h4><ul style="margin-left:20px;">';
+                        lesson.key_takeaways.forEach(t => html += '<li style="margin:5px 0;">' + t + '</li>');
+                        html += '</ul></div>';
                     }
-                    html += '</div><hr>';
+                    html += '</div>';
                 });
-                document.getElementById('lessonText').innerHTML = html;
+
+                textEl.innerHTML = html;
+            } catch (err) {
+                console.error('Education error:', err);
+                textEl.innerHTML = '<p style="color:var(--danger);">Failed to load lessons. Please try again.</p>';
             }
         }
 
