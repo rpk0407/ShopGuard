@@ -15,6 +15,10 @@ from .agents.coordinator import coordinator
 from .education.teacher import teacher, LessonCategory
 from .analysis.opportunity import detector, OpportunityType
 from .assistant.brain import TradingAssistant
+from .brokers import BrokerManager
+
+# Initialize broker manager for real trading
+broker_manager = BrokerManager()
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -649,10 +653,13 @@ MAIN_TEMPLATE = '''
                 </div>
 
                 <div class="card">
-                    <div class="card-title">Alpaca API (Optional)</div>
+                    <div class="card-title">📈 Alpaca API (Stocks)</div>
                     <p style="color:var(--text-secondary);font-size:0.85em;margin-bottom:15px;">
-                        For real paper trading. Get FREE keys at alpaca.markets
+                        FREE paper trading for US stocks. Get keys at <a href="https://alpaca.markets" target="_blank" style="color:var(--accent);">alpaca.markets</a>
                     </p>
+                    <div id="alpacaStatus" style="padding:10px;border-radius:6px;margin-bottom:15px;background:var(--bg-secondary);">
+                        <span style="color:var(--text-secondary);">Not connected</span>
+                    </div>
                     <div class="form-group">
                         <label>API Key</label>
                         <input type="text" id="settingAlpacaKey" placeholder="PKXXXXXXXXXX">
@@ -661,7 +668,32 @@ MAIN_TEMPLATE = '''
                         <label>Secret Key</label>
                         <input type="password" id="settingAlpacaSecret" placeholder="••••••••••••">
                     </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="settingAlpacaPaper" checked> Paper Trading (recommended)</label>
+                    </div>
                     <button class="btn btn-outline" onclick="testAlpaca()">Test Connection</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">🪙 Binance API (Crypto)</div>
+                    <p style="color:var(--text-secondary);font-size:0.85em;margin-bottom:15px;">
+                        For crypto trading. Get keys at <a href="https://www.binance.com/en/my/settings/api-management" target="_blank" style="color:var(--accent);">binance.com</a> or use <a href="https://testnet.binance.vision/" target="_blank" style="color:var(--accent);">testnet</a>
+                    </p>
+                    <div id="binanceStatus" style="padding:10px;border-radius:6px;margin-bottom:15px;background:var(--bg-secondary);">
+                        <span style="color:var(--text-secondary);">Not connected</span>
+                    </div>
+                    <div class="form-group">
+                        <label>API Key</label>
+                        <input type="text" id="settingBinanceKey" placeholder="Your Binance API Key">
+                    </div>
+                    <div class="form-group">
+                        <label>Secret Key</label>
+                        <input type="password" id="settingBinanceSecret" placeholder="••••••••••••">
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="settingBinanceTestnet" checked> Testnet (paper trading)</label>
+                    </div>
+                    <button class="btn btn-outline" onclick="testBinance()">Test Connection</button>
                 </div>
             </div>
         </div>
@@ -1178,8 +1210,102 @@ MAIN_TEMPLATE = '''
                 el('settingCrypto', (data.crypto || []).join(', '));
                 chk('settingEnableNews', data.enable_news !== false);
                 chk('settingEnableSocial', data.enable_social !== false);
+
+                // Check broker connection status
+                updateBrokerStatus();
             } catch (err) {
                 console.error('Error loading settings:', err);
+            }
+        }
+
+        async function updateBrokerStatus() {
+            try {
+                const data = await api('brokers/status');
+                if (!data.success) return;
+
+                // Update Alpaca status
+                const alpacaEl = document.getElementById('alpacaStatus');
+                if (alpacaEl && data.alpaca) {
+                    if (data.alpaca.connected) {
+                        const acc = data.alpaca.account;
+                        alpacaEl.innerHTML = '<span style="color:var(--success);">✓ Connected (' + data.alpaca.mode + ')</span>' +
+                            '<div style="font-size:0.85em;color:var(--text-secondary);margin-top:5px;">Equity: $' + (acc.equity || 0).toFixed(2) + ' | Buying Power: $' + (acc.buying_power || 0).toFixed(2) + '</div>';
+                        alpacaEl.style.borderLeft = '3px solid var(--success)';
+                    } else {
+                        alpacaEl.innerHTML = '<span style="color:var(--text-secondary);">Not connected</span>';
+                        alpacaEl.style.borderLeft = 'none';
+                    }
+                }
+
+                // Update Binance status
+                const binanceEl = document.getElementById('binanceStatus');
+                if (binanceEl && data.binance) {
+                    if (data.binance.connected) {
+                        const acc = data.binance.account;
+                        binanceEl.innerHTML = '<span style="color:var(--success);">✓ Connected (' + data.binance.mode + ')</span>' +
+                            '<div style="font-size:0.85em;color:var(--text-secondary);margin-top:5px;">USDT Balance: $' + (acc.usdt_balance || 0).toFixed(2) + '</div>';
+                        binanceEl.style.borderLeft = '3px solid var(--success)';
+                    } else {
+                        binanceEl.innerHTML = '<span style="color:var(--text-secondary);">Not connected</span>';
+                        binanceEl.style.borderLeft = 'none';
+                    }
+                }
+            } catch (err) {
+                console.error('Error checking broker status:', err);
+            }
+        }
+
+        async function testAlpaca() {
+            const key = document.getElementById('settingAlpacaKey').value;
+            const secret = document.getElementById('settingAlpacaSecret').value;
+            const paper = document.getElementById('settingAlpacaPaper').checked;
+
+            if (!key || !secret) {
+                alert('Please enter both API Key and Secret Key');
+                return;
+            }
+
+            const statusEl = document.getElementById('alpacaStatus');
+            statusEl.innerHTML = '<span style="color:var(--warning);">Testing connection...</span>';
+
+            const data = await api('brokers/alpaca/test', 'POST', { api_key: key, secret_key: secret, paper: paper });
+
+            if (data.success) {
+                statusEl.innerHTML = '<span style="color:var(--success);">✓ Connected!</span>' +
+                    '<div style="font-size:0.85em;color:var(--text-secondary);margin-top:5px;">Equity: $' + data.account.equity.toFixed(2) + '</div>';
+                statusEl.style.borderLeft = '3px solid var(--success)';
+                alert('Alpaca connected successfully! Equity: $' + data.account.equity.toFixed(2));
+            } else {
+                statusEl.innerHTML = '<span style="color:var(--danger);">✗ ' + (data.error || 'Connection failed') + '</span>';
+                statusEl.style.borderLeft = '3px solid var(--danger)';
+                alert('Connection failed: ' + (data.error || 'Unknown error'));
+            }
+        }
+
+        async function testBinance() {
+            const key = document.getElementById('settingBinanceKey').value;
+            const secret = document.getElementById('settingBinanceSecret').value;
+            const testnet = document.getElementById('settingBinanceTestnet').checked;
+
+            if (!key || !secret) {
+                alert('Please enter both API Key and Secret Key');
+                return;
+            }
+
+            const statusEl = document.getElementById('binanceStatus');
+            statusEl.innerHTML = '<span style="color:var(--warning);">Testing connection...</span>';
+
+            const data = await api('brokers/binance/test', 'POST', { api_key: key, secret_key: secret, testnet: testnet });
+
+            if (data.success) {
+                statusEl.innerHTML = '<span style="color:var(--success);">✓ Connected!</span>' +
+                    '<div style="font-size:0.85em;color:var(--text-secondary);margin-top:5px;">USDT: $' + data.account.usdt_free.toFixed(2) + '</div>';
+                statusEl.style.borderLeft = '3px solid var(--success)';
+                alert('Binance connected successfully! USDT Balance: $' + data.account.usdt_free.toFixed(2));
+            } else {
+                statusEl.innerHTML = '<span style="color:var(--danger);">✗ ' + (data.error || 'Connection failed') + '</span>';
+                statusEl.style.borderLeft = '3px solid var(--danger)';
+                alert('Connection failed: ' + (data.error || 'Unknown error'));
             }
         }
 
@@ -1194,7 +1320,11 @@ MAIN_TEMPLATE = '''
                 enable_news: document.getElementById('settingEnableNews').checked,
                 enable_social: document.getElementById('settingEnableSocial').checked,
                 alpaca_api_key: document.getElementById('settingAlpacaKey').value,
-                alpaca_secret_key: document.getElementById('settingAlpacaSecret').value
+                alpaca_secret_key: document.getElementById('settingAlpacaSecret').value,
+                alpaca_paper: document.getElementById('settingAlpacaPaper').checked,
+                binance_api_key: document.getElementById('settingBinanceKey').value,
+                binance_secret_key: document.getElementById('settingBinanceSecret').value,
+                binance_testnet: document.getElementById('settingBinanceTestnet').checked
             };
 
             const data = await api('settings', 'POST', settings);
@@ -1912,6 +2042,150 @@ def api_chat():
     except Exception as e:
         import traceback
         traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)})
+
+
+# =============================================================================
+# BROKER API ROUTES (Alpaca + Binance)
+# =============================================================================
+
+@app.route('/api/brokers/status')
+def api_brokers_status():
+    """Get connection status for all brokers"""
+    try:
+        status = broker_manager.get_status()
+        return jsonify({
+            "success": True,
+            "alpaca": status["alpaca"],
+            "binance": status["binance"]
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/brokers/alpaca/test', methods=['POST'])
+def api_test_alpaca():
+    """Test Alpaca API connection"""
+    try:
+        data = request.json
+        api_key = data.get('api_key')
+        secret_key = data.get('secret_key')
+        paper = data.get('paper', True)
+
+        if not api_key or not secret_key:
+            return jsonify({"success": False, "error": "API key and secret required"})
+
+        result = broker_manager.configure_alpaca(api_key, secret_key, paper)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/brokers/binance/test', methods=['POST'])
+def api_test_binance():
+    """Test Binance API connection"""
+    try:
+        data = request.json
+        api_key = data.get('api_key')
+        secret_key = data.get('secret_key')
+        testnet = data.get('testnet', True)
+
+        if not api_key or not secret_key:
+            return jsonify({"success": False, "error": "API key and secret required"})
+
+        result = broker_manager.configure_binance(api_key, secret_key, testnet)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/brokers/buy', methods=['POST'])
+def api_broker_buy():
+    """Execute a real buy order through connected broker"""
+    try:
+        data = request.json
+        symbol = data.get('symbol')
+        amount = data.get('amount')  # Dollar amount
+        qty = data.get('qty')  # Quantity (alternative)
+
+        if not symbol:
+            return jsonify({"success": False, "error": "Symbol required"})
+
+        # Check if broker is connected for this symbol
+        can_trade = broker_manager.can_trade(symbol)
+        if not can_trade["can_trade"]:
+            return jsonify({
+                "success": False,
+                "error": f"{can_trade['broker'].upper()} not connected. Add API keys in Settings."
+            })
+
+        result = broker_manager.buy(symbol, amount=amount, qty=qty)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/brokers/sell', methods=['POST'])
+def api_broker_sell():
+    """Execute a real sell order through connected broker"""
+    try:
+        data = request.json
+        symbol = data.get('symbol')
+        qty = data.get('qty')
+        close_all = data.get('close_all', False)
+
+        if not symbol:
+            return jsonify({"success": False, "error": "Symbol required"})
+
+        can_trade = broker_manager.can_trade(symbol)
+        if not can_trade["can_trade"]:
+            return jsonify({
+                "success": False,
+                "error": f"{can_trade['broker'].upper()} not connected"
+            })
+
+        result = broker_manager.sell(symbol, qty=qty, close_all=close_all)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/brokers/positions')
+def api_broker_positions():
+    """Get all real positions from connected brokers"""
+    try:
+        positions = broker_manager.get_all_positions()
+        return jsonify({
+            "success": True,
+            "positions": [
+                {
+                    "symbol": p.symbol,
+                    "asset_type": p.asset_type,
+                    "quantity": p.quantity,
+                    "entry_price": p.entry_price,
+                    "current_price": p.current_price,
+                    "market_value": p.market_value,
+                    "unrealized_pnl": p.unrealized_pnl,
+                    "unrealized_pnl_pct": p.unrealized_pnl_pct,
+                    "broker": p.broker
+                }
+                for p in positions
+            ]
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/brokers/equity')
+def api_broker_equity():
+    """Get total equity from all connected brokers"""
+    try:
+        equity = broker_manager.get_total_equity()
+        return jsonify({
+            "success": True,
+            **equity
+        })
+    except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
 
