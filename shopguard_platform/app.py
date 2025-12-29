@@ -855,11 +855,19 @@ MAIN_TEMPLATE = '''
                     <h3>🎯 Trading Strategies</h3>
                     <p style="color:var(--text-secondary);margin-top:10px;">Complete strategies you can use</p>
                 </div>
+                <div class="card" onclick="showLessonCategory('stocks')" style="cursor:pointer;">
+                    <h3>📈 Stock Trading</h3>
+                    <p style="color:var(--text-secondary);margin-top:10px;">Stock market basics, ETFs, and stock-specific strategies</p>
+                </div>
+                <div class="card" onclick="showLessonCategory('advanced')" style="cursor:pointer;">
+                    <h3>🎓 Advanced Topics</h3>
+                    <p style="color:var(--text-secondary);margin-top:10px;">Building trading systems, journaling, and performance analysis</p>
+                </div>
             </div>
 
             <div id="lessonContent" class="card" style="margin-top:20px;display:none;">
                 <button class="btn btn-outline" onclick="hideLessonContent()" style="margin-bottom:15px;">← Back to Categories</button>
-                <div id="lessonText" style="line-height:1.8;white-space:pre-wrap;"></div>
+                <div id="lessonText" style="line-height:1.8;"></div>
             </div>
         </div>
     </main>
