@@ -32,7 +32,7 @@ scanner_running = False
 
 
 # =============================================================================
-# COMPLETE HTML TEMPLATE
+# CLEAN HTML TEMPLATE - REBUILT FROM SCRATCH
 # =============================================================================
 
 MAIN_TEMPLATE = '''
@@ -41,162 +41,85 @@ MAIN_TEMPLATE = '''
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏦 ShopGuard Trading Platform</title>
+    <title>ShopGuard Trading</title>
     <style>
-        :root {
-            --bg-primary: #0a0a0f;
-            --bg-secondary: #12121a;
-            --bg-card: #1a1a25;
-            --border: #2a2a3a;
-            --text-primary: #ffffff;
-            --text-secondary: #8888aa;
-            --accent: #6366f1;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-        }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
+        :root {
+            --bg: #0f0f15;
+            --bg2: #1a1a24;
+            --bg3: #24243a;
+            --border: #333;
+            --text: #fff;
+            --text2: #888;
+            --accent: #6366f1;
+            --green: #22c55e;
+            --red: #ef4444;
+            --yellow: #eab308;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
             min-height: 100vh;
         }
 
         /* Sidebar */
         .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 220px;
-            height: 100vh;
-            background: var(--bg-secondary);
-            border-right: 1px solid var(--border);
+            width: 200px;
+            background: var(--bg2);
             padding: 20px;
-            display: flex;
-            flex-direction: column;
+            border-right: 1px solid var(--border);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
         }
 
-        .logo {
-            font-size: 1.5em;
-            font-weight: 700;
-            margin-bottom: 30px;
-            color: var(--accent);
-        }
+        .logo { font-size: 1.3em; font-weight: bold; color: var(--accent); margin-bottom: 30px; }
 
-        .nav-item {
-            padding: 12px 15px;
-            margin-bottom: 5px;
+        .nav-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: transparent;
+            border: none;
+            color: var(--text2);
+            text-align: left;
             border-radius: 8px;
             cursor: pointer;
-            color: var(--text-secondary);
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            font-size: 0.95em;
         }
+        .nav-btn:hover { background: var(--bg3); color: var(--text); }
+        .nav-btn.active { background: var(--accent); color: white; }
 
-        .nav-item:hover, .nav-item.active {
-            background: var(--bg-card);
-            color: var(--text-primary);
-        }
-
-        .nav-item.active {
-            border-left: 3px solid var(--accent);
-        }
-
-        /* Main Content */
+        /* Main */
         .main {
-            margin-left: 220px;
-            padding: 20px;
-            min-height: 100vh;
+            flex: 1;
+            margin-left: 200px;
+            padding: 30px;
         }
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .header h1 { font-size: 1.5em; }
-
-        .header-actions {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
+        /* Pages */
+        .page { display: none; }
+        .page.active { display: block; }
 
         /* Cards */
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
         .card {
-            background: var(--bg-card);
+            background: var(--bg2);
             border: 1px solid var(--border);
             border-radius: 12px;
             padding: 20px;
+            margin-bottom: 20px;
         }
 
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
+        .card-title { color: var(--text2); font-size: 0.85em; margin-bottom: 8px; }
+        .card-value { font-size: 1.8em; font-weight: bold; }
 
-        .card-title {
-            font-size: 0.9em;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        /* Stats */
-        .stat-value {
-            font-size: 2em;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-
-        .stat-label {
-            color: var(--text-secondary);
-            font-size: 0.85em;
-        }
-
-        .positive { color: var(--success); }
-        .negative { color: var(--danger); }
-
-        /* Tables */
-        .table-container {
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-        }
-
-        th {
-            color: var(--text-secondary);
-            font-weight: 500;
-            font-size: 0.85em;
-            text-transform: uppercase;
-        }
+        /* Grid */
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }
 
         /* Buttons */
         .btn {
@@ -204,1425 +127,562 @@ MAIN_TEMPLATE = '''
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 0.9em;
-            transition: all 0.2s;
+            font-size: 0.95em;
         }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-success { background: var(--green); color: white; }
+        .btn-danger { background: var(--red); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+        .btn:hover { opacity: 0.9; }
 
-        .btn-primary {
-            background: var(--accent);
-            color: white;
-        }
-
-        .btn-success {
-            background: var(--success);
-            color: white;
-        }
-
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-
-        .btn-outline {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text-primary);
-        }
-
-        .btn:hover {
-            opacity: 0.9;
-            transform: translateY(-1px);
-        }
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--text2); font-weight: normal; }
 
         /* Signals */
-        .signal-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            font-weight: 600;
-        }
+        .signal-buy { color: var(--green); }
+        .signal-sell { color: var(--red); }
+        .signal-hold { color: var(--yellow); }
 
-        .signal-buy { background: rgba(16, 185, 129, 0.2); color: var(--success); }
-        .signal-sell { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
-        .signal-hold { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
-
-        /* Score bars */
-        .score-bar {
-            display: flex;
-            gap: 5px;
-            margin-top: 5px;
-        }
-
-        .score {
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.7em;
-        }
-
-        .score-tech { background: rgba(99, 102, 241, 0.3); }
-        .score-news { background: rgba(168, 85, 247, 0.3); }
-        .score-social { background: rgba(249, 115, 22, 0.3); }
-
-        /* Positions */
-        .position-card {
-            background: var(--bg-secondary);
+        /* Input */
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 15px;
+            color: var(--text);
             margin-bottom: 10px;
         }
 
-        .position-header {
+        /* Header */
+        .page-header {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 10px;
-        }
-
-        /* Alerts */
-        .alert-item {
-            display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 10px;
+            margin-bottom: 25px;
+        }
+        .page-header h1 { font-size: 1.5em; }
+
+        /* Chat */
+        .chat-box {
+            height: 400px;
+            overflow-y: auto;
+            background: var(--bg);
             border-radius: 8px;
-            margin-bottom: 8px;
-            background: var(--bg-secondary);
-        }
-
-        .alert-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-        }
-
-        .alert-info .alert-dot { background: var(--accent); }
-        .alert-warning .alert-dot { background: var(--warning); }
-        .alert-critical .alert-dot { background: var(--danger); }
-
-        /* Live indicator */
-        .live-dot {
-            width: 8px;
-            height: 8px;
-            background: var(--success);
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        /* Tabs */
-        .tabs {
-            display: flex;
-            gap: 5px;
-            margin-bottom: 20px;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 10px;
-        }
-
-        .tab {
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            color: var(--text-secondary);
-        }
-
-        .tab.active {
-            background: var(--accent);
-            color: white;
-        }
-
-        /* Settings Form */
-        .form-group {
+            padding: 15px;
             margin-bottom: 15px;
         }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: var(--text-secondary);
-            font-size: 0.9em;
+        .chat-msg {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 8px;
         }
+        .chat-user { background: var(--bg3); margin-left: 50px; }
+        .chat-ai { background: var(--accent); margin-right: 50px; }
 
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-        }
+        /* Lesson */
+        .lesson { background: var(--bg3); padding: 20px; border-radius: 10px; margin-bottom: 15px; }
+        .lesson h3 { margin-bottom: 10px; color: var(--accent); }
 
-        /* Page sections - JavaScript navigation only */
-        .page { display: none; }
-        .page.active { display: block; }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .sidebar { display: none; }
-            .main { margin-left: 0; }
-        }
+        /* Loading */
+        .loading { color: var(--text2); text-align: center; padding: 40px; }
     </style>
 </head>
 <body>
-    <!-- Sidebar -->
     <nav class="sidebar">
-        <div class="logo">🏦 ShopGuard</div>
-        <div class="nav-item" onclick="showPage('assistant')" data-page="assistant" style="background:linear-gradient(135deg, #6366f1, #8b5cf6);color:white;font-weight:bold;">🤖 AI Assistant</div>
-        <div class="nav-item" onclick="showPage('dashboard')" data-page="dashboard">📊 Dashboard</div>
-        <div class="nav-item active" onclick="showPage('signals')" data-page="signals">🎯 Signals</div>
-        <div class="nav-item" onclick="showPage('analysis')" data-page="analysis">🧠 Deep Analysis</div>
-        <div class="nav-item" onclick="showPage('opportunities')" data-page="opportunities">💡 Opportunities</div>
-        <div class="nav-item" onclick="showPage('learn')" data-page="learn">📚 Learn</div>
-        <div class="nav-item" onclick="showPage('portfolio')" data-page="portfolio">💰 Portfolio</div>
-        <div class="nav-item" onclick="showPage('trades')" data-page="trades">📜 Trades</div>
-        <div class="nav-item" onclick="showPage('settings')" data-page="settings">⚙️ Settings</div>
-        <div style="flex:1;"></div>
-        <div class="nav-item" onclick="showPage('alerts')" data-page="alerts">🔔 Alerts <span id="alertCount" style="background:var(--danger);padding:2px 8px;border-radius:10px;font-size:0.8em;margin-left:auto;">0</span></div>
+        <div class="logo">ShopGuard</div>
+        <button class="nav-btn active" onclick="nav('dashboard')">Dashboard</button>
+        <button class="nav-btn" onclick="nav('signals')">Signals</button>
+        <button class="nav-btn" onclick="nav('portfolio')">Portfolio</button>
+        <button class="nav-btn" onclick="nav('trades')">Trades</button>
+        <button class="nav-btn" onclick="nav('analysis')">Analysis</button>
+        <button class="nav-btn" onclick="nav('opportunities')">Opportunities</button>
+        <button class="nav-btn" onclick="nav('learn')">Learn</button>
+        <button class="nav-btn" onclick="nav('chat')">AI Chat</button>
+        <button class="nav-btn" onclick="nav('settings')">Settings</button>
     </nav>
 
-    <!-- Main Content -->
     <main class="main">
-        <!-- AI Assistant Page -->
-        <div id="assistant" class="page">
-            <div class="header">
-                <h1>🤖 AI Trading Assistant</h1>
-                <span style="color:var(--text-secondary);">Talk to me to control everything</span>
-            </div>
-
-            <div style="display:flex;gap:20px;height:calc(100vh - 150px);">
-                <!-- Chat Area -->
-                <div class="card" style="flex:2;display:flex;flex-direction:column;">
-                    <div id="chatMessages" style="flex:1;overflow-y:auto;padding:15px;background:var(--bg-secondary);border-radius:8px;margin-bottom:15px;">
-                        <div class="chat-message assistant">
-                            <div class="chat-bubble" style="background:var(--accent);padding:15px;border-radius:12px;max-width:80%;margin-bottom:15px;">
-                                <strong>🤖 AI Assistant</strong>
-                                <p style="margin-top:10px;">Hey! I'm your AI Trading Assistant. I can help you:</p>
-                                <ul style="margin:10px 0;padding-left:20px;">
-                                    <li><strong>Trade</strong>: "Buy Bitcoin" or "Sell ETH"</li>
-                                    <li><strong>Analyze</strong>: "Analyze NVDA" for deep analysis</li>
-                                    <li><strong>Learn</strong>: "Explain RSI" or "Teach me risk management"</li>
-                                    <li><strong>Monitor</strong>: "Show my portfolio" or "Find opportunities"</li>
-                                </ul>
-                                <p>Just type naturally - I'll understand!</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="display:flex;gap:10px;">
-                        <input type="text" id="chatInput" placeholder="Type your message... (e.g., 'Analyze Bitcoin' or 'Show my portfolio')"
-                               style="flex:1;padding:15px;border:1px solid var(--border);border-radius:8px;background:var(--bg-secondary);color:white;font-size:1em;"
-                               onkeypress="if(event.key==='Enter')sendChat()">
-                        <button class="btn btn-primary" onclick="sendChat()" style="padding:15px 25px;">Send 🚀</button>
-                    </div>
-                </div>
-
-                <!-- Quick Actions Sidebar -->
-                <div class="card" style="flex:1;max-width:300px;">
-                    <h4 style="margin-bottom:15px;">⚡ Quick Commands</h4>
-                    <div style="display:flex;flex-direction:column;gap:8px;">
-                        <button class="btn btn-outline" onclick="quickChat('Analyze Bitcoin')" style="text-align:left;">🔬 Analyze Bitcoin</button>
-                        <button class="btn btn-outline" onclick="quickChat('Analyze Ethereum')" style="text-align:left;">🔬 Analyze Ethereum</button>
-                        <button class="btn btn-outline" onclick="quickChat('Show my portfolio')" style="text-align:left;">💰 Show Portfolio</button>
-                        <button class="btn btn-outline" onclick="quickChat('Find opportunities')" style="text-align:left;">💡 Find Opportunities</button>
-                        <button class="btn btn-outline" onclick="quickChat('Scan market')" style="text-align:left;">📡 Scan Market</button>
-                        <button class="btn btn-outline" onclick="quickChat('How am I performing?')" style="text-align:left;">📈 My Performance</button>
-                    </div>
-
-                    <h4 style="margin:20px 0 15px;">📚 Learn</h4>
-                    <div style="display:flex;flex-direction:column;gap:8px;">
-                        <button class="btn btn-outline" onclick="quickChat('Explain RSI')" style="text-align:left;">📊 Explain RSI</button>
-                        <button class="btn btn-outline" onclick="quickChat('Explain position sizing')" style="text-align:left;">📏 Position Sizing</button>
-                        <button class="btn btn-outline" onclick="quickChat('Explain stop loss')" style="text-align:left;">⚠️ Stop Loss</button>
-                        <button class="btn btn-outline" onclick="quickChat('What is FOMO?')" style="text-align:left;">🧠 FOMO & FUD</button>
-                    </div>
-
-                    <h4 style="margin:20px 0 15px;">🔄 Trade</h4>
-                    <div style="display:flex;flex-direction:column;gap:8px;">
-                        <button class="btn btn-success" onclick="quickChat('Buy Bitcoin')" style="text-align:left;">🟢 Buy Bitcoin</button>
-                        <button class="btn btn-success" onclick="quickChat('Buy Ethereum')" style="text-align:left;">🟢 Buy Ethereum</button>
-                        <button class="btn btn-danger" onclick="quickChat('Close all positions')" style="text-align:left;">🔴 Close All</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Dashboard Page -->
-        <div id="dashboard" class="page">
-            <div class="header">
+        <!-- DASHBOARD -->
+        <div id="page-dashboard" class="page active">
+            <div class="page-header">
                 <h1>Dashboard</h1>
-                <div class="header-actions">
-                    <div class="live-dot"></div>
-                    <span style="color:var(--text-secondary);margin-right:15px;">Live</span>
-                    <button class="btn btn-primary" onclick="scanMarket()">🔍 Scan Market</button>
-                    <button class="btn btn-outline" onclick="refreshAll()">🔄 Refresh</button>
-                </div>
+                <button class="btn btn-primary" onclick="scanMarket()">Scan Market</button>
             </div>
-
             <div class="grid">
                 <div class="card">
-                    <div class="card-title">Total Equity</div>
-                    <div class="stat-value" id="totalEquity">$0.00</div>
-                    <div class="stat-label">Initial: $<span id="initialCapital">100</span></div>
+                    <div class="card-title">Equity</div>
+                    <div class="card-value" id="equity">$100.00</div>
                 </div>
                 <div class="card">
-                    <div class="card-title">Total P&L</div>
-                    <div class="stat-value" id="totalPnl">$0.00</div>
-                    <div class="stat-label" id="pnlPercent">0.00%</div>
+                    <div class="card-title">P&L</div>
+                    <div class="card-value" id="pnl">$0.00</div>
                 </div>
                 <div class="card">
-                    <div class="card-title">Open Positions</div>
-                    <div class="stat-value" id="positionsCount">0</div>
-                    <div class="stat-label">Active trades</div>
+                    <div class="card-title">Positions</div>
+                    <div class="card-value" id="positions">0</div>
                 </div>
                 <div class="card">
                     <div class="card-title">Win Rate</div>
-                    <div class="stat-value" id="winRate">0%</div>
-                    <div class="stat-label"><span id="totalTrades">0</span> total trades</div>
+                    <div class="card-value" id="winrate">0%</div>
                 </div>
             </div>
-
-            <div class="grid">
-                <div class="card" style="grid-column: span 2;">
-                    <div class="card-header">
-                        <div class="card-title">Top Signals</div>
-                        <span style="color:var(--text-secondary);font-size:0.85em;">Last scan: <span id="lastScan">Never</span></span>
-                    </div>
-                    <div id="topSignals">
-                        <p style="color:var(--text-secondary);">Click "Scan Market" to analyze</p>
-                    </div>
-                </div>
-                <div class="card">
-                    <div class="card-title">Quick Actions</div>
-                    <div style="display:flex;flex-direction:column;gap:10px;margin-top:15px;">
-                        <button class="btn btn-success" onclick="autoTrade()">🤖 Auto Trade</button>
-                        <button class="btn btn-danger" onclick="closeAllPositions()">🛑 Close All</button>
-                        <button class="btn btn-outline" onclick="showPage('settings')">⚙️ Settings</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Signals Page -->
-        <div id="signals" class="page active">
-            <div class="header">
-                <h1>Trading Signals</h1>
-                <button class="btn btn-primary" onclick="scanMarket()">🔍 Scan All Assets</button>
-            </div>
-
-            <div class="tabs">
-                <div class="tab active" data-filter="all">All</div>
-                <div class="tab" data-filter="buy">Buy Signals</div>
-                <div class="tab" data-filter="sell">Sell Signals</div>
-            </div>
-
             <div class="card">
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Symbol</th>
-                                <th>Price</th>
-                                <th>Signal</th>
-                                <th>Confidence</th>
-                                <th>Scores</th>
-                                <th>SL / TP</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="signalsTable">
-                            <tr><td colspan="7" style="text-align:center;color:var(--text-secondary);">No signals yet. Click "Scan All Assets"</td></tr>
-                        </tbody>
-                    </table>
-                </div>
+                <h3 style="margin-bottom:15px;">Top Signals</h3>
+                <div id="top-signals"><p class="loading">Click Scan Market</p></div>
             </div>
         </div>
 
-        <!-- Portfolio Page -->
-        <div id="portfolio" class="page">
-            <div class="header">
-                <h1>Portfolio</h1>
-                <button class="btn btn-outline" onclick="refreshPortfolio()">🔄 Refresh Prices</button>
+        <!-- SIGNALS -->
+        <div id="page-signals" class="page">
+            <div class="page-header">
+                <h1>Trading Signals</h1>
+                <button class="btn btn-primary" onclick="scanMarket()">Scan All</button>
             </div>
+            <div class="card">
+                <table>
+                    <thead>
+                        <tr><th>Asset</th><th>Price</th><th>Signal</th><th>Confidence</th><th>Action</th></tr>
+                    </thead>
+                    <tbody id="signals-table">
+                        <tr><td colspan="5" class="loading">Click Scan All to analyze markets</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
+        <!-- PORTFOLIO -->
+        <div id="page-portfolio" class="page">
+            <div class="page-header">
+                <h1>Portfolio</h1>
+                <button class="btn btn-outline" onclick="loadPortfolio()">Refresh</button>
+            </div>
             <div class="grid">
                 <div class="card">
                     <div class="card-title">Cash</div>
-                    <div class="stat-value" id="portfolioCash">$0.00</div>
+                    <div class="card-value" id="port-cash">$100.00</div>
                 </div>
                 <div class="card">
                     <div class="card-title">Positions Value</div>
-                    <div class="stat-value" id="portfolioPositions">$0.00</div>
+                    <div class="card-value" id="port-value">$0.00</div>
                 </div>
             </div>
-
             <div class="card">
-                <div class="card-title">Open Positions</div>
-                <div id="positionsList" style="margin-top:15px;">
-                    <p style="color:var(--text-secondary);">No open positions</p>
-                </div>
+                <h3 style="margin-bottom:15px;">Open Positions</h3>
+                <table>
+                    <thead>
+                        <tr><th>Asset</th><th>Qty</th><th>Entry</th><th>Current</th><th>P&L</th></tr>
+                    </thead>
+                    <tbody id="positions-table">
+                        <tr><td colspan="5" class="loading">No positions</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <!-- Trades Page -->
-        <div id="trades" class="page">
-            <div class="header">
+        <!-- TRADES -->
+        <div id="page-trades" class="page">
+            <div class="page-header">
                 <h1>Trade History</h1>
             </div>
-
             <div class="card">
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>Symbol</th>
-                                <th>Side</th>
-                                <th>Quantity</th>
-                                <th>Price</th>
-                                <th>P&L</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tradesTable">
-                            <tr><td colspan="6" style="text-align:center;color:var(--text-secondary);">No trades yet</td></tr>
-                        </tbody>
-                    </table>
-                </div>
+                <table>
+                    <thead>
+                        <tr><th>Date</th><th>Asset</th><th>Type</th><th>Price</th><th>Qty</th><th>P&L</th></tr>
+                    </thead>
+                    <tbody id="trades-table">
+                        <tr><td colspan="6" class="loading">Loading...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <!-- Settings Page -->
-        <div id="settings" class="page">
-            <div class="header">
-                <h1>Settings</h1>
-                <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+        <!-- ANALYSIS -->
+        <div id="page-analysis" class="page">
+            <div class="page-header">
+                <h1>Deep Analysis</h1>
             </div>
-
-            <div class="grid">
-                <div class="card">
-                    <div class="card-title">Trading Settings</div>
-                    <div class="form-group">
-                        <label>Initial Capital ($)</label>
-                        <input type="number" id="settingCapital" value="100">
-                    </div>
-                    <div class="form-group">
-                        <label>Risk Level</label>
-                        <select id="settingRisk">
-                            <option value="conservative">Conservative (2% SL, 4% TP)</option>
-                            <option value="moderate" selected>Moderate (3% SL, 6% TP)</option>
-                            <option value="aggressive">Aggressive (5% SL, 10% TP)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Min Confidence (%)</label>
-                        <input type="number" id="settingConfidence" value="65" min="0" max="100">
-                    </div>
-                    <div class="form-group">
-                        <label>Scan Interval (minutes)</label>
-                        <input type="number" id="settingScanInterval" value="5" min="1">
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-title">Assets</div>
-                    <div class="form-group">
-                        <label>Stocks (comma-separated)</label>
-                        <input type="text" id="settingStocks" value="NVDA, SPY, QQQ, AAPL, TSLA, AMD">
-                    </div>
-                    <div class="form-group">
-                        <label>Crypto (comma-separated)</label>
-                        <input type="text" id="settingCrypto" value="bitcoin, ethereum">
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-title">Data Sources</div>
-                    <div class="form-group">
-                        <label><input type="checkbox" id="settingEnableNews" checked> Enable News Analysis</label>
-                    </div>
-                    <div class="form-group">
-                        <label><input type="checkbox" id="settingEnableSocial" checked> Enable Social Sentiment</label>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-title">📈 Alpaca API (Stocks)</div>
-                    <p style="color:var(--text-secondary);font-size:0.85em;margin-bottom:15px;">
-                        FREE paper trading for US stocks. Get keys at <a href="https://alpaca.markets" target="_blank" style="color:var(--accent);">alpaca.markets</a>
-                    </p>
-                    <div id="alpacaStatus" style="padding:10px;border-radius:6px;margin-bottom:15px;background:var(--bg-secondary);">
-                        <span style="color:var(--text-secondary);">Not connected</span>
-                    </div>
-                    <div class="form-group">
-                        <label>API Key</label>
-                        <input type="text" id="settingAlpacaKey" placeholder="PKXXXXXXXXXX">
-                    </div>
-                    <div class="form-group">
-                        <label>Secret Key</label>
-                        <input type="password" id="settingAlpacaSecret" placeholder="••••••••••••">
-                    </div>
-                    <div class="form-group">
-                        <label><input type="checkbox" id="settingAlpacaPaper" checked> Paper Trading (recommended)</label>
-                    </div>
-                    <button class="btn btn-outline" onclick="testAlpaca()">Test Connection</button>
-                </div>
-
-                <div class="card">
-                    <div class="card-title">🪙 Binance API (Crypto)</div>
-                    <p style="color:var(--text-secondary);font-size:0.85em;margin-bottom:15px;">
-                        For crypto trading. Get keys at <a href="https://www.binance.com/en/my/settings/api-management" target="_blank" style="color:var(--accent);">binance.com</a> or use <a href="https://testnet.binance.vision/" target="_blank" style="color:var(--accent);">testnet</a>
-                    </p>
-                    <div id="binanceStatus" style="padding:10px;border-radius:6px;margin-bottom:15px;background:var(--bg-secondary);">
-                        <span style="color:var(--text-secondary);">Not connected</span>
-                    </div>
-                    <div class="form-group">
-                        <label>API Key</label>
-                        <input type="text" id="settingBinanceKey" placeholder="Your Binance API Key">
-                    </div>
-                    <div class="form-group">
-                        <label>Secret Key</label>
-                        <input type="password" id="settingBinanceSecret" placeholder="••••••••••••">
-                    </div>
-                    <div class="form-group">
-                        <label><input type="checkbox" id="settingBinanceTestnet" checked> Testnet (paper trading)</label>
-                    </div>
-                    <button class="btn btn-outline" onclick="testBinance()">Test Connection</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Alerts Page -->
-        <div id="alerts" class="page">
-            <div class="header">
-                <h1>Alerts</h1>
-                <button class="btn btn-outline" onclick="markAllRead()">✓ Mark All Read</button>
-            </div>
-
             <div class="card">
-                <div id="alertsList">
-                    <p style="color:var(--text-secondary);">No alerts</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Deep Analysis Page -->
-        <div id="analysis" class="page">
-            <div class="header">
-                <h1>🧠 Deep Analysis</h1>
-                <div class="header-actions">
-                    <select id="analysisAsset" style="padding:10px;background:var(--bg-card);border:1px solid var(--border);color:white;border-radius:6px;">
+                <div style="display:flex;gap:10px;margin-bottom:20px;">
+                    <select id="analysis-asset">
                         <option value="BTC">Bitcoin (BTC)</option>
                         <option value="ETH">Ethereum (ETH)</option>
                         <option value="SPY">S&P 500 (SPY)</option>
                         <option value="QQQ">NASDAQ (QQQ)</option>
                         <option value="NVDA">NVIDIA (NVDA)</option>
                     </select>
-                    <button class="btn btn-primary" onclick="runDeepAnalysis()">🔬 Run Deep Analysis</button>
+                    <button class="btn btn-primary" onclick="runAnalysis()">Analyze</button>
                 </div>
-            </div>
-
-            <div id="analysisLoading" style="display:none;text-align:center;padding:40px;">
-                <p style="font-size:1.2em;">🔄 Running multi-agent analysis...</p>
-                <p style="color:var(--text-secondary);" id="analysisStatus">Initializing agents...</p>
-            </div>
-
-            <div id="analysisResults" style="display:none;">
-                <!-- Summary Card -->
-                <div class="card" style="margin-bottom:20px;border-left:4px solid var(--accent);">
-                    <h3 id="analysisTitle" style="margin-bottom:15px;">Analysis Results</h3>
-                    <div id="analysisSummary" style="font-size:1.1em;line-height:1.6;"></div>
-                    <div style="margin-top:20px;display:flex;gap:20px;flex-wrap:wrap;">
-                        <div style="background:var(--bg-secondary);padding:15px;border-radius:8px;min-width:150px;">
-                            <div style="color:var(--text-secondary);font-size:0.85em;">Recommendation</div>
-                            <div id="analysisAction" style="font-size:1.5em;font-weight:bold;margin-top:5px;">-</div>
-                        </div>
-                        <div style="background:var(--bg-secondary);padding:15px;border-radius:8px;min-width:150px;">
-                            <div style="color:var(--text-secondary);font-size:0.85em;">Confidence</div>
-                            <div id="analysisConfidence" style="font-size:1.5em;font-weight:bold;margin-top:5px;">-</div>
-                        </div>
-                        <div style="background:var(--bg-secondary);padding:15px;border-radius:8px;min-width:150px;">
-                            <div style="color:var(--text-secondary);font-size:0.85em;">Consensus</div>
-                            <div id="analysisConsensus" style="font-size:1.5em;font-weight:bold;margin-top:5px;">-</div>
-                        </div>
-                        <div style="background:var(--bg-secondary);padding:15px;border-radius:8px;min-width:150px;">
-                            <div style="color:var(--text-secondary);font-size:0.85em;">Hold Time</div>
-                            <div id="analysisHoldTime" style="font-size:1em;margin-top:5px;">-</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Key Reasons -->
-                <div class="card" style="margin-bottom:20px;">
-                    <h4 style="margin-bottom:15px;">📋 Key Reasons</h4>
-                    <ul id="analysisReasons" style="list-style:none;padding:0;"></ul>
-                </div>
-
-                <!-- Trade Setup -->
-                <div class="grid">
-                    <div class="card">
-                        <h4 style="margin-bottom:15px;">💡 Opportunity</h4>
-                        <p id="analysisOpportunity" style="color:var(--success);"></p>
-                    </div>
-                    <div class="card">
-                        <h4 style="margin-bottom:15px;">⚠️ Primary Risk</h4>
-                        <p id="analysisRisk" style="color:var(--danger);"></p>
-                    </div>
-                </div>
-
-                <!-- Agent Opinions -->
-                <div class="card" style="margin-top:20px;">
-                    <h4 style="margin-bottom:15px;">🤖 Agent Opinions</h4>
-                    <div id="agentOpinions" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:15px;"></div>
-                </div>
-
-                <!-- Learning Points -->
-                <div class="card" style="margin-top:20px;background:linear-gradient(135deg, var(--bg-card), #1e1e35);">
-                    <h4 style="margin-bottom:15px;">📚 What You Can Learn From This</h4>
-                    <ul id="analysisLearning" style="list-style:none;padding:0;"></ul>
-                </div>
-
-                <!-- Warnings -->
-                <div class="card" style="margin-top:20px;border-left:4px solid var(--warning);">
-                    <h4 style="margin-bottom:15px;">⚠️ Warnings</h4>
-                    <ul id="analysisWarnings" style="list-style:none;padding:0;"></ul>
-                </div>
-            </div>
-
-            <div id="analysisEmpty" class="card" style="text-align:center;padding:40px;">
-                <p style="font-size:1.2em;">Select an asset and click "Run Deep Analysis"</p>
-                <p style="color:var(--text-secondary);margin-top:10px;">The multi-agent system will analyze technical, fundamental, news, and social data</p>
+                <div id="analysis-result"><p class="loading">Select asset and click Analyze</p></div>
             </div>
         </div>
 
-        <!-- Opportunities Page -->
-        <div id="opportunities" class="page">
-            <div class="header">
-                <h1>💡 Trading Opportunities</h1>
-                <button class="btn btn-primary" onclick="scanOpportunities()">🔍 Scan All Assets</button>
+        <!-- OPPORTUNITIES -->
+        <div id="page-opportunities" class="page">
+            <div class="page-header">
+                <h1>Opportunities</h1>
+                <button class="btn btn-primary" onclick="findOpportunities()">Find Opportunities</button>
             </div>
-
-            <div id="opportunitiesLoading" style="display:none;text-align:center;padding:40px;">
-                <p style="font-size:1.2em;">🔄 Scanning for opportunities...</p>
-            </div>
-
-            <div id="opportunitiesList"></div>
-
-            <div id="opportunitiesEmpty" class="card" style="text-align:center;padding:40px;">
-                <p style="font-size:1.2em;">Click "Scan All Assets" to find opportunities</p>
-                <p style="color:var(--text-secondary);margin-top:10px;">The system will analyze all assets and explain each opportunity in detail</p>
+            <div id="opportunities-list">
+                <div class="card"><p class="loading">Click Find Opportunities to scan</p></div>
             </div>
         </div>
 
-        <!-- Learn Page -->
-        <div id="learn" class="page">
-            <div class="header">
-                <h1>📚 Trading Education</h1>
+        <!-- LEARN -->
+        <div id="page-learn" class="page">
+            <div class="page-header">
+                <h1>Trading Education</h1>
             </div>
-
             <div class="grid">
-                <div class="card" onclick="showLessonCategory('basics')" style="cursor:pointer;">
-                    <h3>📖 Trading Basics</h3>
-                    <p style="color:var(--text-secondary);margin-top:10px;">What is trading, order types, getting started</p>
+                <button class="btn btn-outline" onclick="loadLessons('basics')">Trading Basics</button>
+                <button class="btn btn-outline" onclick="loadLessons('technical')">Technical Analysis</button>
+                <button class="btn btn-outline" onclick="loadLessons('fundamental')">Fundamental</button>
+                <button class="btn btn-outline" onclick="loadLessons('risk')">Risk Management</button>
+                <button class="btn btn-outline" onclick="loadLessons('psychology')">Psychology</button>
+                <button class="btn btn-outline" onclick="loadLessons('crypto')">Crypto</button>
+                <button class="btn btn-outline" onclick="loadLessons('stocks')">Stocks</button>
+                <button class="btn btn-outline" onclick="loadLessons('strategies')">Strategies</button>
+                <button class="btn btn-outline" onclick="loadLessons('advanced')">Advanced</button>
+            </div>
+            <div id="lessons-container"></div>
+        </div>
+
+        <!-- CHAT -->
+        <div id="page-chat" class="page">
+            <div class="page-header">
+                <h1>AI Trading Assistant</h1>
+            </div>
+            <div class="card">
+                <div class="chat-box" id="chat-messages">
+                    <div class="chat-msg chat-ai">Hello! I can help you trade, analyze markets, or learn about trading. Try: "Analyze Bitcoin" or "Buy ETH"</div>
                 </div>
-                <div class="card" onclick="showLessonCategory('technical')" style="cursor:pointer;">
-                    <h3>📊 Technical Analysis</h3>
-                    <p style="color:var(--text-secondary);margin-top:10px;">Charts, indicators, patterns, and more</p>
-                </div>
-                <div class="card" onclick="showLessonCategory('fundamental')" style="cursor:pointer;">
-                    <h3>📈 Fundamental Analysis</h3>
-                    <p style="color:var(--text-secondary);margin-top:10px;">Value, metrics, and what drives prices</p>
-                </div>
-                <div class="card" onclick="showLessonCategory('risk')" style="cursor:pointer;">
-                    <h3>⚖️ Risk Management</h3>
-                    <p style="color:var(--text-secondary);margin-top:10px;">Position sizing, stop losses, protecting capital</p>
-                </div>
-                <div class="card" onclick="showLessonCategory('psychology')" style="cursor:pointer;">
-                    <h3>🧠 Trading Psychology</h3>
-                    <p style="color:var(--text-secondary);margin-top:10px;">Emotions, discipline, mindset</p>
-                </div>
-                <div class="card" onclick="showLessonCategory('crypto')" style="cursor:pointer;">
-                    <h3>₿ Crypto Trading</h3>
-                    <p style="color:var(--text-secondary);margin-top:10px;">Crypto-specific knowledge and strategies</p>
-                </div>
-                <div class="card" onclick="showLessonCategory('strategies')" style="cursor:pointer;">
-                    <h3>🎯 Trading Strategies</h3>
-                    <p style="color:var(--text-secondary);margin-top:10px;">Complete strategies you can use</p>
-                </div>
-                <div class="card" onclick="showLessonCategory('stocks')" style="cursor:pointer;">
-                    <h3>📈 Stock Trading</h3>
-                    <p style="color:var(--text-secondary);margin-top:10px;">Stock market basics, ETFs, and stock-specific strategies</p>
-                </div>
-                <div class="card" onclick="showLessonCategory('advanced')" style="cursor:pointer;">
-                    <h3>🎓 Advanced Topics</h3>
-                    <p style="color:var(--text-secondary);margin-top:10px;">Building trading systems, journaling, and performance analysis</p>
+                <div style="display:flex;gap:10px;">
+                    <input type="text" id="chat-input" placeholder="Ask me anything..." onkeypress="if(event.key==='Enter')sendChat()">
+                    <button class="btn btn-primary" onclick="sendChat()">Send</button>
                 </div>
             </div>
+        </div>
 
-            <div id="lessonContent" class="card" style="margin-top:20px;display:none;">
-                <button class="btn btn-outline" onclick="hideLessonContent()" style="margin-bottom:15px;">← Back to Categories</button>
-                <div id="lessonText" style="line-height:1.8;"></div>
+        <!-- SETTINGS -->
+        <div id="page-settings" class="page">
+            <div class="page-header">
+                <h1>Settings</h1>
+            </div>
+            <div class="card">
+                <h3 style="margin-bottom:15px;">Trading Settings</h3>
+                <label style="color:var(--text2);display:block;margin-bottom:5px;">Initial Capital ($)</label>
+                <input type="number" id="set-capital" value="100">
+
+                <label style="color:var(--text2);display:block;margin-bottom:5px;">Stop Loss (%)</label>
+                <input type="number" id="set-stoploss" value="3">
+
+                <label style="color:var(--text2);display:block;margin-bottom:5px;">Take Profit (%)</label>
+                <input type="number" id="set-takeprofit" value="6">
+
+                <div style="margin-top:15px;">
+                    <label style="color:var(--text2);">
+                        <input type="checkbox" id="set-autotrade"> Enable Auto-Trading
+                    </label>
+                </div>
+
+                <button class="btn btn-primary" style="margin-top:20px;" onclick="saveSettings()">Save Settings</button>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-bottom:15px;">Broker API Keys (Optional)</h3>
+                <label style="color:var(--text2);display:block;margin-bottom:5px;">Alpaca API Key</label>
+                <input type="text" id="set-alpaca-key" placeholder="Your Alpaca API key">
+
+                <label style="color:var(--text2);display:block;margin-bottom:5px;">Alpaca Secret</label>
+                <input type="password" id="set-alpaca-secret" placeholder="Your Alpaca secret">
+
+                <label style="color:var(--text2);display:block;margin-bottom:5px;">Binance API Key</label>
+                <input type="text" id="set-binance-key" placeholder="Your Binance API key">
+
+                <label style="color:var(--text2);display:block;margin-bottom:5px;">Binance Secret</label>
+                <input type="password" id="set-binance-secret" placeholder="Your Binance secret">
+
+                <button class="btn btn-outline" style="margin-top:15px;" onclick="saveBrokerKeys()">Save Broker Keys</button>
             </div>
         </div>
     </main>
 
     <script>
-        // State
-        let currentSignals = {};
-        let autoRefreshInterval = null;
-        let currentPage = 'signals';
-
-        // ============================================
-        // JAVASCRIPT NAVIGATION (Simple & Reliable)
-        // ============================================
-        function showPage(page) {
-            console.log('Navigating to:', page);
-            currentPage = page;
-
+        // =====================
+        // NAVIGATION
+        // =====================
+        function nav(page) {
             // Hide all pages
-            document.querySelectorAll('.page').forEach(function(p) {
-                p.classList.remove('active');
-            });
-
-            // Remove active from all nav items
-            document.querySelectorAll('.nav-item').forEach(function(n) {
-                n.classList.remove('active');
-                // Reset AI Assistant special styling
-                if (n.getAttribute('data-page') === 'assistant') {
-                    n.style.background = 'linear-gradient(135deg, #6366f1, #8b5cf6)';
-                    n.style.color = 'white';
-                }
-            });
-
-            // Show selected page
-            var pageEl = document.getElementById(page);
-            if (pageEl) {
-                pageEl.classList.add('active');
-            }
-
-            // Highlight selected nav item
-            var navItem = document.querySelector('[data-page="' + page + '"]');
-            if (navItem) {
-                navItem.classList.add('active');
-                if (page !== 'assistant') {
-                    navItem.style.background = 'var(--accent)';
-                    navItem.style.color = 'white';
-                }
-            }
-
-            // Load page-specific data
-            if (page === 'dashboard') refreshAll();
-            if (page === 'portfolio') refreshPortfolio();
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            // Show selected
+            document.getElementById('page-' + page).classList.add('active');
+            // Update nav buttons
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            // Load data
+            if (page === 'portfolio') loadPortfolio();
             if (page === 'trades') loadTrades();
             if (page === 'settings') loadSettings();
-            if (page === 'alerts') loadAlerts();
         }
 
-        // Initialize on page load
-        window.addEventListener('DOMContentLoaded', function() {
-            console.log('ShopGuard Platform Ready');
-            showPage('signals');  // Default page
-            refreshAll();
-            setInterval(refreshAll, 30000);
-        });
-
-        // API Calls with error handling
+        // =====================
+        // API HELPER
+        // =====================
         async function api(endpoint, method = 'GET', data = null) {
-            try {
-                const opts = { method, headers: { 'Content-Type': 'application/json' } };
-                if (data) opts.body = JSON.stringify(data);
-                const resp = await fetch('/api/' + endpoint, opts);
-                if (!resp.ok) {
-                    console.error('API error:', resp.status, resp.statusText);
-                    return { success: false, error: resp.statusText };
-                }
-                return await resp.json();
-            } catch (err) {
-                console.error('API call failed:', endpoint, err);
-                return { success: false, error: err.message };
+            const opts = { method, headers: { 'Content-Type': 'application/json' } };
+            if (data) opts.body = JSON.stringify(data);
+            const resp = await fetch('/api/' + endpoint, opts);
+            return resp.json();
+        }
+
+        // =====================
+        // DASHBOARD
+        // =====================
+        async function loadDashboard() {
+            const data = await api('dashboard');
+            if (data.success) {
+                document.getElementById('equity').textContent = '$' + (data.portfolio.equity || 0).toFixed(2);
+                document.getElementById('pnl').textContent = '$' + (data.portfolio.total_pnl || 0).toFixed(2);
+                document.getElementById('positions').textContent = data.portfolio.positions?.length || 0;
+                document.getElementById('winrate').textContent = (data.stats.win_rate || 0).toFixed(0) + '%';
             }
         }
 
-        // Dashboard
-        async function refreshAll() {
-            try {
-                const data = await api('dashboard');
-                if (!data.success) {
-                    console.warn('Dashboard API returned error:', data.error);
-                    return;
-                }
-
-                // Update equity
-                const totalEquityEl = document.getElementById('totalEquity');
-                if (totalEquityEl && data.portfolio) {
-                    totalEquityEl.textContent = '$' + (data.portfolio.equity || 0).toFixed(2);
-                }
-
-                const initialCapitalEl = document.getElementById('initialCapital');
-                if (initialCapitalEl && data.portfolio) {
-                    initialCapitalEl.textContent = (data.portfolio.initial_capital || 100).toFixed(0);
-                }
-
-                // Update PnL
-                if (data.portfolio) {
-                    const pnl = data.portfolio.total_pnl || 0;
-                    const pnlEl = document.getElementById('totalPnl');
-                    if (pnlEl) {
-                        pnlEl.textContent = (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2);
-                        pnlEl.className = 'stat-value ' + (pnl >= 0 ? 'positive' : 'negative');
-                    }
-                    const pnlPctEl = document.getElementById('pnlPercent');
-                    if (pnlPctEl) {
-                        pnlPctEl.textContent = (data.portfolio.total_pnl_pct || 0).toFixed(2) + '%';
-                    }
-                }
-
-                // Update positions
-                const posCountEl = document.getElementById('positionsCount');
-                if (posCountEl && data.portfolio) {
-                    posCountEl.textContent = (data.portfolio.positions || []).length;
-                }
-
-                // Update stats
-                if (data.stats) {
-                    const winRateEl = document.getElementById('winRate');
-                    if (winRateEl) winRateEl.textContent = (data.stats.win_rate || 0) + '%';
-                    const totalTradesEl = document.getElementById('totalTrades');
-                    if (totalTradesEl) totalTradesEl.textContent = data.stats.total_trades || 0;
-                }
-
-                // Update last scan
-                const lastScanEl = document.getElementById('lastScan');
-                if (lastScanEl) lastScanEl.textContent = data.last_scan || 'Never';
-
-                // Update alerts
-                const alertCountEl = document.getElementById('alertCount');
-                if (alertCountEl) alertCountEl.textContent = data.unread_alerts || 0;
-
-                // Update signals
-                if (data.signals && Object.keys(data.signals).length > 0) {
-                    updateTopSignals(data.signals);
-                }
-            } catch (err) {
-                console.error('Error refreshing dashboard:', err);
-            }
-        }
-
-        function updateTopSignals(signals) {
-            const container = document.getElementById('topSignals');
-            const sorted = Object.values(signals)
-                .filter(s => s.signal !== 'HOLD')
-                .sort((a, b) => b.confidence - a.confidence)
-                .slice(0, 5);
-
-            if (sorted.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-secondary);">No actionable signals</p>';
-                return;
-            }
-
-            container.innerHTML = sorted.map(s => {
-                const signalClass = s.signal.includes('BUY') ? 'signal-buy' : s.signal.includes('SELL') ? 'signal-sell' : 'signal-hold';
-                return `
-                    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid var(--border);">
-                        <div>
-                            <strong>${s.symbol}</strong>
-                            <span class="signal-badge ${signalClass}">${s.signal}</span>
-                            <div class="score-bar">
-                                <span class="score score-tech">T:${s.technical_score.toFixed(2)}</span>
-                                <span class="score score-news">N:${s.news_score.toFixed(2)}</span>
-                                <span class="score score-social">S:${s.social_score.toFixed(2)}</span>
-                            </div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div>$${s.price.toFixed(2)}</div>
-                            <div style="color:var(--text-secondary);font-size:0.85em;">${(s.confidence*100).toFixed(0)}% conf</div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // Scan Market
+        // =====================
+        // SCAN MARKET
+        // =====================
         async function scanMarket() {
-            document.getElementById('topSignals').innerHTML = '<p>Scanning markets...</p>';
+            document.getElementById('top-signals').innerHTML = '<p class="loading">Scanning...</p>';
+            document.getElementById('signals-table').innerHTML = '<tr><td colspan="5" class="loading">Scanning...</td></tr>';
+
             const data = await api('scan', 'POST');
             if (data.success) {
-                currentSignals = data.signals;
-                updateTopSignals(data.signals);
-                updateSignalsTable(data.signals);
-            }
-        }
+                const signals = Object.values(data.signals).sort((a, b) => b.confidence - a.confidence);
 
-        function updateSignalsTable(signals) {
-            const tbody = document.getElementById('signalsTable');
-            const rows = Object.values(signals).sort((a, b) => b.confidence - a.confidence);
+                // Top signals
+                let html = '';
+                signals.slice(0, 3).forEach(s => {
+                    const cls = s.signal.includes('BUY') ? 'signal-buy' : s.signal.includes('SELL') ? 'signal-sell' : 'signal-hold';
+                    html += `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+                        <span><strong>${s.symbol}</strong> - $${s.price.toFixed(2)}</span>
+                        <span class="${cls}">${s.signal} (${(s.confidence*100).toFixed(0)}%)</span>
+                    </div>`;
+                });
+                document.getElementById('top-signals').innerHTML = html || '<p>No signals</p>';
 
-            if (rows.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);">No signals</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = rows.map(s => {
-                const signalClass = s.signal.includes('BUY') ? 'signal-buy' : s.signal.includes('SELL') ? 'signal-sell' : 'signal-hold';
-                return `
-                    <tr>
+                // Signals table
+                let rows = '';
+                signals.forEach(s => {
+                    const cls = s.signal.includes('BUY') ? 'signal-buy' : s.signal.includes('SELL') ? 'signal-sell' : 'signal-hold';
+                    rows += `<tr>
                         <td><strong>${s.symbol}</strong></td>
                         <td>$${s.price.toFixed(2)}</td>
-                        <td><span class="signal-badge ${signalClass}">${s.signal}</span></td>
+                        <td class="${cls}">${s.signal}</td>
                         <td>${(s.confidence*100).toFixed(0)}%</td>
                         <td>
-                            <div class="score-bar">
-                                <span class="score score-tech">T:${s.technical_score.toFixed(2)}</span>
-                                <span class="score score-news">N:${s.news_score.toFixed(2)}</span>
-                                <span class="score score-social">S:${s.social_score.toFixed(2)}</span>
-                            </div>
+                            <button class="btn btn-success" onclick="trade('${s.symbol}','buy')" style="padding:5px 10px;font-size:0.8em;">Buy</button>
+                            <button class="btn btn-danger" onclick="trade('${s.symbol}','sell')" style="padding:5px 10px;font-size:0.8em;">Sell</button>
                         </td>
-                        <td>$${s.stop_loss.toFixed(2)} / $${s.take_profit.toFixed(2)}</td>
-                        <td>
-                            ${s.signal.includes('BUY') ? `<button class="btn btn-success" onclick="executeTrade('${s.symbol}', 'buy')">Buy</button>` : ''}
-                            ${s.signal.includes('SELL') ? `<button class="btn btn-danger" onclick="executeTrade('${s.symbol}', 'sell')">Sell</button>` : ''}
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+                    </tr>`;
+                });
+                document.getElementById('signals-table').innerHTML = rows || '<tr><td colspan="5">No signals</td></tr>';
+            }
         }
 
-        // Auto Trade
-        async function autoTrade() {
-            if (!confirm('Execute all high-confidence signals?')) return;
-            const data = await api('auto-trade', 'POST');
-            alert(data.message);
-            refreshAll();
-        }
+        // =====================
+        // PORTFOLIO
+        // =====================
+        async function loadPortfolio() {
+            const data = await api('portfolio');
+            if (data.success) {
+                document.getElementById('port-cash').textContent = '$' + (data.cash || 0).toFixed(2);
+                document.getElementById('port-value').textContent = '$' + (data.positions_value || 0).toFixed(2);
 
-        // Execute Trade
-        async function executeTrade(symbol, side) {
-            const data = await api('trade', 'POST', { symbol, side });
-            alert(data.message);
-            refreshAll();
-            refreshPortfolio();
-        }
-
-        // Portfolio
-        async function refreshPortfolio() {
-            try {
-                const data = await api('portfolio');
-                if (!data.success) {
-                    console.warn('Portfolio API error:', data.error);
-                    return;
-                }
-
-                const cashEl = document.getElementById('portfolioCash');
-                if (cashEl) cashEl.textContent = '$' + (data.cash || 0).toFixed(2);
-
-                const posValEl = document.getElementById('portfolioPositions');
-                if (posValEl) posValEl.textContent = '$' + (data.positions_value || 0).toFixed(2);
-
-                const list = document.getElementById('positionsList');
-                if (!list) return;
-
-                if (!data.positions || data.positions.length === 0) {
-                    list.innerHTML = '<p style="color:var(--text-secondary);">No open positions</p>';
-                    return;
-                }
-
-                list.innerHTML = data.positions.map(p => {
+                let rows = '';
+                (data.positions || []).forEach(p => {
                     const pnl = (p.current_price - p.entry_price) * p.quantity;
-                    const pnlPct = ((p.current_price - p.entry_price) / p.entry_price * 100);
-                    const pnlClass = pnl >= 0 ? 'positive' : 'negative';
-                    return '<div class="position-card">' +
-                        '<div class="position-header">' +
-                            '<strong>' + p.symbol + '</strong>' +
-                            '<span class="' + pnlClass + '">' + (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2) + ' (' + pnlPct.toFixed(1) + '%)</span>' +
-                        '</div>' +
-                        '<div style="display:flex;justify-content:space-between;color:var(--text-secondary);font-size:0.85em;">' +
-                            '<span>Qty: ' + p.quantity.toFixed(4) + '</span>' +
-                            '<span>Entry: $' + p.entry_price.toFixed(2) + '</span>' +
-                            '<span>Current: $' + p.current_price.toFixed(2) + '</span>' +
-                        '</div>' +
-                        '<div style="margin-top:10px;">' +
-                            '<button class="btn btn-danger" onclick="closePosition(\'' + p.symbol + '\')">Close Position</button>' +
-                        '</div>' +
-                    '</div>';
-                }).join('');
-            } catch (err) {
-                console.error('Error loading portfolio:', err);
+                    const cls = pnl >= 0 ? 'signal-buy' : 'signal-sell';
+                    rows += `<tr>
+                        <td>${p.symbol}</td>
+                        <td>${p.quantity.toFixed(4)}</td>
+                        <td>$${p.entry_price.toFixed(2)}</td>
+                        <td>$${p.current_price.toFixed(2)}</td>
+                        <td class="${cls}">$${pnl.toFixed(2)}</td>
+                    </tr>`;
+                });
+                document.getElementById('positions-table').innerHTML = rows || '<tr><td colspan="5">No positions</td></tr>';
             }
         }
 
-        async function closePosition(symbol) {
-            if (!confirm(`Close ${symbol} position?`)) return;
-            await api('trade', 'POST', { symbol, side: 'sell' });
-            refreshPortfolio();
-            refreshAll();
-        }
-
-        async function closeAllPositions() {
-            if (!confirm('Close ALL positions?')) return;
-            await api('close-all', 'POST');
-            refreshPortfolio();
-            refreshAll();
-        }
-
-        // Trades
+        // =====================
+        // TRADES
+        // =====================
         async function loadTrades() {
-            try {
-                const data = await api('trades');
-                const tbody = document.getElementById('tradesTable');
-                if (!tbody) return;
-
-                if (!data.trades || data.trades.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-secondary);">No trades yet</td></tr>';
-                    return;
-                }
-
-                tbody.innerHTML = data.trades.map(t => {
-                    const sideClass = t.side === 'BUY' ? 'positive' : 'negative';
-                    const pnlClass = (t.pnl || 0) >= 0 ? 'positive' : 'negative';
-                    return '<tr>' +
-                        '<td>' + new Date(t.timestamp).toLocaleString() + '</td>' +
-                        '<td><strong>' + t.symbol + '</strong></td>' +
-                        '<td class="' + sideClass + '">' + t.side + '</td>' +
-                        '<td>' + (t.quantity || 0).toFixed(4) + '</td>' +
-                        '<td>$' + (t.price || 0).toFixed(2) + '</td>' +
-                        '<td class="' + pnlClass + '">' + (t.side === 'SELL' ? ((t.pnl || 0) >= 0 ? '+' : '') + '$' + (t.pnl || 0).toFixed(2) : '-') + '</td>' +
-                    '</tr>';
-                }).join('');
-            } catch (err) {
-                console.error('Error loading trades:', err);
+            const data = await api('trades');
+            if (data.success) {
+                let rows = '';
+                (data.trades || []).forEach(t => {
+                    const cls = (t.pnl || 0) >= 0 ? 'signal-buy' : 'signal-sell';
+                    rows += `<tr>
+                        <td>${t.timestamp}</td>
+                        <td>${t.symbol}</td>
+                        <td>${t.side}</td>
+                        <td>$${t.price.toFixed(2)}</td>
+                        <td>${t.quantity.toFixed(4)}</td>
+                        <td class="${cls}">$${(t.pnl || 0).toFixed(2)}</td>
+                    </tr>`;
+                });
+                document.getElementById('trades-table').innerHTML = rows || '<tr><td colspan="6">No trades yet</td></tr>';
             }
         }
 
-        // Settings
+        // =====================
+        // TRADE
+        // =====================
+        async function trade(symbol, side) {
+            const data = await api('trade', 'POST', { symbol, side, amount: 10 });
+            alert(data.success ? `${side.toUpperCase()} order placed for ${symbol}` : 'Trade failed: ' + data.error);
+            loadPortfolio();
+            loadDashboard();
+        }
+
+        // =====================
+        // ANALYSIS
+        // =====================
+        async function runAnalysis() {
+            const asset = document.getElementById('analysis-asset').value;
+            document.getElementById('analysis-result').innerHTML = '<p class="loading">Analyzing ' + asset + '... This may take a moment.</p>';
+
+            const data = await api('deep-analysis/' + asset);
+            if (data.success) {
+                const a = data.analysis;
+                let html = `
+                    <div class="lesson">
+                        <h3>${a.symbol} - ${a.recommendation}</h3>
+                        <p><strong>Confidence:</strong> ${(a.confidence * 100).toFixed(0)}%</p>
+                        <p><strong>Entry Zone:</strong> $${a.entry_zone?.join(' - $') || 'N/A'}</p>
+                        <p><strong>Targets:</strong> $${a.targets?.join(', $') || 'N/A'}</p>
+                        <p><strong>Stop Loss:</strong> $${a.stop_loss || 'N/A'}</p>
+                        <p><strong>Hold Time:</strong> ${a.hold_time || 'N/A'}</p>
+                    </div>
+                    <div class="card" style="margin-top:15px;">
+                        <h4>Agent Votes</h4>
+                        <p>Technical: ${a.votes?.technical || 'N/A'}</p>
+                        <p>News: ${a.votes?.news || 'N/A'}</p>
+                        <p>Social: ${a.votes?.social || 'N/A'}</p>
+                        <p>Risk: ${a.votes?.risk || 'N/A'}</p>
+                        <p>Fundamental: ${a.votes?.fundamental || 'N/A'}</p>
+                    </div>
+                `;
+                document.getElementById('analysis-result').innerHTML = html;
+            } else {
+                document.getElementById('analysis-result').innerHTML = '<p class="loading">Analysis failed</p>';
+            }
+        }
+
+        // =====================
+        // OPPORTUNITIES
+        // =====================
+        async function findOpportunities() {
+            document.getElementById('opportunities-list').innerHTML = '<div class="card"><p class="loading">Scanning for opportunities...</p></div>';
+
+            const data = await api('opportunities', 'POST');
+            if (data.success && data.opportunities?.length > 0) {
+                let html = '';
+                data.opportunities.forEach(o => {
+                    html += `<div class="card">
+                        <h3>${o.symbol} - ${o.opportunity_type}</h3>
+                        <p><strong>Confidence:</strong> ${(o.confidence * 100).toFixed(0)}%</p>
+                        <p>${o.explanation || ''}</p>
+                        <button class="btn btn-success" onclick="trade('${o.symbol}','buy')" style="margin-top:10px;">Trade</button>
+                    </div>`;
+                });
+                document.getElementById('opportunities-list').innerHTML = html;
+            } else {
+                document.getElementById('opportunities-list').innerHTML = '<div class="card"><p>No opportunities found right now</p></div>';
+            }
+        }
+
+        // =====================
+        // EDUCATION
+        // =====================
+        async function loadLessons(category) {
+            document.getElementById('lessons-container').innerHTML = '<div class="card"><p class="loading">Loading...</p></div>';
+
+            const data = await api('education/' + category);
+            if (data.success && data.lessons?.length > 0) {
+                let html = '';
+                data.lessons.forEach((l, i) => {
+                    html += `<div class="lesson">
+                        <h3>Lesson ${i + 1}: ${l.title}</h3>
+                        <p style="color:var(--text2);margin-bottom:10px;">${l.difficulty}</p>
+                        <div style="white-space:pre-wrap;">${l.content}</div>
+                        ${l.key_takeaways?.length ? '<h4 style="margin-top:15px;">Key Takeaways:</h4><ul>' + l.key_takeaways.map(t => '<li>' + t + '</li>').join('') + '</ul>' : ''}
+                    </div>`;
+                });
+                document.getElementById('lessons-container').innerHTML = html;
+            } else {
+                document.getElementById('lessons-container').innerHTML = '<div class="card"><p>No lessons in this category</p></div>';
+            }
+        }
+
+        // =====================
+        // CHAT
+        // =====================
+        async function sendChat() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            const box = document.getElementById('chat-messages');
+            box.innerHTML += `<div class="chat-msg chat-user">${msg}</div>`;
+            input.value = '';
+
+            const data = await api('chat', 'POST', { message: msg });
+            if (data.success) {
+                box.innerHTML += `<div class="chat-msg chat-ai">${data.response.message}</div>`;
+            } else {
+                box.innerHTML += `<div class="chat-msg chat-ai">Sorry, something went wrong.</div>`;
+            }
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // =====================
+        // SETTINGS
+        // =====================
         async function loadSettings() {
-            try {
-                const data = await api('settings');
-                if (!data.success) {
-                    console.warn('Settings API error:', data.error);
-                    return;
-                }
-
-                const el = (id, val) => { const e = document.getElementById(id); if (e) e.value = val; };
-                const chk = (id, val) => { const e = document.getElementById(id); if (e) e.checked = val; };
-
-                el('settingCapital', data.initial_capital || 100);
-                el('settingRisk', data.risk_level || 'moderate');
-                el('settingConfidence', (data.min_confidence || 0.65) * 100);
-                el('settingScanInterval', data.scan_interval || 5);
-                el('settingStocks', (data.stocks || []).join(', '));
-                el('settingCrypto', (data.crypto || []).join(', '));
-                chk('settingEnableNews', data.enable_news !== false);
-                chk('settingEnableSocial', data.enable_social !== false);
-
-                // Check broker connection status
-                updateBrokerStatus();
-            } catch (err) {
-                console.error('Error loading settings:', err);
-            }
-        }
-
-        async function updateBrokerStatus() {
-            try {
-                const data = await api('brokers/status');
-                if (!data.success) return;
-
-                // Update Alpaca status
-                const alpacaEl = document.getElementById('alpacaStatus');
-                if (alpacaEl && data.alpaca) {
-                    if (data.alpaca.connected) {
-                        const acc = data.alpaca.account;
-                        alpacaEl.innerHTML = '<span style="color:var(--success);">✓ Connected (' + data.alpaca.mode + ')</span>' +
-                            '<div style="font-size:0.85em;color:var(--text-secondary);margin-top:5px;">Equity: $' + (acc.equity || 0).toFixed(2) + ' | Buying Power: $' + (acc.buying_power || 0).toFixed(2) + '</div>';
-                        alpacaEl.style.borderLeft = '3px solid var(--success)';
-                    } else {
-                        alpacaEl.innerHTML = '<span style="color:var(--text-secondary);">Not connected</span>';
-                        alpacaEl.style.borderLeft = 'none';
-                    }
-                }
-
-                // Update Binance status
-                const binanceEl = document.getElementById('binanceStatus');
-                if (binanceEl && data.binance) {
-                    if (data.binance.connected) {
-                        const acc = data.binance.account;
-                        binanceEl.innerHTML = '<span style="color:var(--success);">✓ Connected (' + data.binance.mode + ')</span>' +
-                            '<div style="font-size:0.85em;color:var(--text-secondary);margin-top:5px;">USDT Balance: $' + (acc.usdt_balance || 0).toFixed(2) + '</div>';
-                        binanceEl.style.borderLeft = '3px solid var(--success)';
-                    } else {
-                        binanceEl.innerHTML = '<span style="color:var(--text-secondary);">Not connected</span>';
-                        binanceEl.style.borderLeft = 'none';
-                    }
-                }
-            } catch (err) {
-                console.error('Error checking broker status:', err);
-            }
-        }
-
-        async function testAlpaca() {
-            const key = document.getElementById('settingAlpacaKey').value;
-            const secret = document.getElementById('settingAlpacaSecret').value;
-            const paper = document.getElementById('settingAlpacaPaper').checked;
-
-            if (!key || !secret) {
-                alert('Please enter both API Key and Secret Key');
-                return;
-            }
-
-            const statusEl = document.getElementById('alpacaStatus');
-            statusEl.innerHTML = '<span style="color:var(--warning);">Testing connection...</span>';
-
-            const data = await api('brokers/alpaca/test', 'POST', { api_key: key, secret_key: secret, paper: paper });
-
+            const data = await api('settings');
             if (data.success) {
-                statusEl.innerHTML = '<span style="color:var(--success);">✓ Connected!</span>' +
-                    '<div style="font-size:0.85em;color:var(--text-secondary);margin-top:5px;">Equity: $' + data.account.equity.toFixed(2) + '</div>';
-                statusEl.style.borderLeft = '3px solid var(--success)';
-                alert('Alpaca connected successfully! Equity: $' + data.account.equity.toFixed(2));
-            } else {
-                statusEl.innerHTML = '<span style="color:var(--danger);">✗ ' + (data.error || 'Connection failed') + '</span>';
-                statusEl.style.borderLeft = '3px solid var(--danger)';
-                alert('Connection failed: ' + (data.error || 'Unknown error'));
-            }
-        }
-
-        async function testBinance() {
-            const key = document.getElementById('settingBinanceKey').value;
-            const secret = document.getElementById('settingBinanceSecret').value;
-            const testnet = document.getElementById('settingBinanceTestnet').checked;
-
-            if (!key || !secret) {
-                alert('Please enter both API Key and Secret Key');
-                return;
-            }
-
-            const statusEl = document.getElementById('binanceStatus');
-            statusEl.innerHTML = '<span style="color:var(--warning);">Testing connection...</span>';
-
-            const data = await api('brokers/binance/test', 'POST', { api_key: key, secret_key: secret, testnet: testnet });
-
-            if (data.success) {
-                statusEl.innerHTML = '<span style="color:var(--success);">✓ Connected!</span>' +
-                    '<div style="font-size:0.85em;color:var(--text-secondary);margin-top:5px;">USDT: $' + data.account.usdt_free.toFixed(2) + '</div>';
-                statusEl.style.borderLeft = '3px solid var(--success)';
-                alert('Binance connected successfully! USDT Balance: $' + data.account.usdt_free.toFixed(2));
-            } else {
-                statusEl.innerHTML = '<span style="color:var(--danger);">✗ ' + (data.error || 'Connection failed') + '</span>';
-                statusEl.style.borderLeft = '3px solid var(--danger)';
-                alert('Connection failed: ' + (data.error || 'Unknown error'));
+                document.getElementById('set-capital').value = data.settings.initial_capital || 100;
+                document.getElementById('set-stoploss').value = data.settings.stop_loss_pct || 3;
+                document.getElementById('set-takeprofit').value = data.settings.take_profit_pct || 6;
+                document.getElementById('set-autotrade').checked = data.settings.auto_trade || false;
             }
         }
 
         async function saveSettings() {
             const settings = {
-                initial_capital: document.getElementById('settingCapital').value,
-                risk_level: document.getElementById('settingRisk').value,
-                min_confidence: document.getElementById('settingConfidence').value / 100,
-                scan_interval: document.getElementById('settingScanInterval').value,
-                stocks: document.getElementById('settingStocks').value.split(',').map(s => s.trim()),
-                crypto: document.getElementById('settingCrypto').value.split(',').map(s => s.trim()),
-                enable_news: document.getElementById('settingEnableNews').checked,
-                enable_social: document.getElementById('settingEnableSocial').checked,
-                alpaca_api_key: document.getElementById('settingAlpacaKey').value,
-                alpaca_secret_key: document.getElementById('settingAlpacaSecret').value,
-                alpaca_paper: document.getElementById('settingAlpacaPaper').checked,
-                binance_api_key: document.getElementById('settingBinanceKey').value,
-                binance_secret_key: document.getElementById('settingBinanceSecret').value,
-                binance_testnet: document.getElementById('settingBinanceTestnet').checked
+                initial_capital: parseFloat(document.getElementById('set-capital').value),
+                stop_loss_pct: parseFloat(document.getElementById('set-stoploss').value),
+                take_profit_pct: parseFloat(document.getElementById('set-takeprofit').value),
+                auto_trade: document.getElementById('set-autotrade').checked
             };
-
             const data = await api('settings', 'POST', settings);
-            alert(data.message);
+            alert(data.success ? 'Settings saved!' : 'Failed to save');
         }
 
-        // Alerts
-        async function loadAlerts() {
-            try {
-                const data = await api('alerts');
-                const list = document.getElementById('alertsList');
-                if (!list) return;
-
-                if (!data.alerts || data.alerts.length === 0) {
-                    list.innerHTML = '<p style="color:var(--text-secondary);">No alerts</p>';
-                    return;
-                }
-
-                list.innerHTML = data.alerts.map(a => {
-                    return '<div class="alert-item alert-' + (a.severity || 'info') + '">' +
-                        '<div class="alert-dot"></div>' +
-                        '<div style="flex:1;">' +
-                            '<strong>' + (a.symbol || 'System') + '</strong>: ' + (a.message || '') +
-                            '<div style="color:var(--text-secondary);font-size:0.8em;">' + new Date(a.timestamp).toLocaleString() + '</div>' +
-                        '</div>' +
-                    '</div>';
-                }).join('');
-            } catch (err) {
-                console.error('Error loading alerts:', err);
-            }
+        async function saveBrokerKeys() {
+            alert('Broker keys would be saved (implement as needed)');
         }
 
-        async function markAllRead() {
-            await api('alerts/read-all', 'POST');
-            document.getElementById('alertCount').textContent = '0';
-            loadAlerts();
-        }
-
-        // Deep Analysis
-        async function runDeepAnalysis() {
-            const asset = document.getElementById('analysisAsset').value;
-            document.getElementById('analysisEmpty').style.display = 'none';
-            document.getElementById('analysisResults').style.display = 'none';
-            document.getElementById('analysisLoading').style.display = 'block';
-
-            try {
-                const data = await api(`deep-analysis/${asset}`, 'POST');
-                if (data.success) {
-                    displayAnalysis(data.analysis);
-                } else {
-                    alert('Analysis failed: ' + (data.error || 'Unknown error'));
-                }
-            } catch (e) {
-                alert('Error: ' + e.message);
-            }
-
-            document.getElementById('analysisLoading').style.display = 'none';
-        }
-
-        function displayAnalysis(a) {
-            document.getElementById('analysisResults').style.display = 'block';
-            document.getElementById('analysisTitle').textContent = `${a.asset} Deep Analysis`;
-            document.getElementById('analysisSummary').textContent = a.summary;
-
-            const actionEl = document.getElementById('analysisAction');
-            actionEl.textContent = a.action;
-            actionEl.className = a.action.includes('BUY') ? 'positive' : a.action.includes('SELL') ? 'negative' : '';
-
-            document.getElementById('analysisConfidence').textContent = a.confidence;
-            document.getElementById('analysisConsensus').textContent = `${(a.consensus_level * 100).toFixed(0)}%`;
-            document.getElementById('analysisHoldTime').textContent = a.suggested_hold_time;
-
-            // Reasons
-            const reasonsEl = document.getElementById('analysisReasons');
-            reasonsEl.innerHTML = a.key_reasons.map(r => `<li style="padding:8px 0;border-bottom:1px solid var(--border);">${r}</li>`).join('');
-
-            // Opportunity and Risk
-            document.getElementById('analysisOpportunity').textContent = a.primary_opportunity;
-            document.getElementById('analysisRisk').textContent = a.primary_risk;
-
-            // Agent Opinions
-            const agentsEl = document.getElementById('agentOpinions');
-            agentsEl.innerHTML = '';
-            for (const [name, opinion] of Object.entries(a.agent_opinions)) {
-                const actionClass = opinion.action.includes('BUY') ? 'positive' : opinion.action.includes('SELL') ? 'negative' : '';
-                agentsEl.innerHTML += `
-                    <div style="background:var(--bg-secondary);padding:15px;border-radius:8px;">
-                        <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
-                            <strong>${opinion.agent}</strong>
-                            <span class="${actionClass}">${opinion.action}</span>
-                        </div>
-                        <p style="color:var(--text-secondary);font-size:0.9em;">${opinion.reasoning.substring(0, 200)}...</p>
-                        <div style="margin-top:10px;font-size:0.85em;color:var(--text-secondary);">
-                            Confidence: ${opinion.confidence} | Hold: ${opinion.suggested_hold_time}
-                        </div>
-                    </div>
-                `;
-            }
-
-            // Learning Points
-            const learningEl = document.getElementById('analysisLearning');
-            learningEl.innerHTML = a.learning_points.map(l => `<li style="padding:8px 0;border-bottom:1px solid var(--border);">${l}</li>`).join('');
-
-            // Warnings
-            const warningsEl = document.getElementById('analysisWarnings');
-            warningsEl.innerHTML = a.warnings.map(w => `<li style="padding:8px 0;color:var(--warning);">${w}</li>`).join('');
-        }
-
-        // Opportunities
-        async function scanOpportunities() {
-            document.getElementById('opportunitiesEmpty').style.display = 'none';
-            document.getElementById('opportunitiesLoading').style.display = 'block';
-            document.getElementById('opportunitiesList').innerHTML = '';
-
-            const data = await api('opportunities', 'POST');
-
-            document.getElementById('opportunitiesLoading').style.display = 'none';
-
-            if (data.success && data.opportunities.length > 0) {
-                const list = document.getElementById('opportunitiesList');
-                list.innerHTML = data.opportunities.map(o => `
-                    <div class="card" style="margin-bottom:20px;border-left:4px solid ${o.direction === 'LONG' ? 'var(--success)' : 'var(--danger)'};">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
-                            <h3>${o.asset} - ${o.headline}</h3>
-                            <span class="signal-badge ${o.direction === 'LONG' ? 'signal-buy' : 'signal-sell'}">${o.direction}</span>
-                        </div>
-                        <div style="background:var(--bg-secondary);padding:15px;border-radius:8px;margin-bottom:15px;">
-                            <strong>Why Now:</strong> ${o.why_now}
-                        </div>
-                        <p style="margin-bottom:15px;">${o.full_explanation.substring(0, 500)}...</p>
-                        <div class="grid" style="margin-bottom:15px;">
-                            <div style="background:var(--bg-secondary);padding:10px;border-radius:6px;">
-                                <div style="color:var(--text-secondary);font-size:0.8em;">Entry Zone</div>
-                                <div>${o.entry_zone}</div>
-                            </div>
-                            <div style="background:var(--bg-secondary);padding:10px;border-radius:6px;">
-                                <div style="color:var(--text-secondary);font-size:0.8em;">Stop Loss</div>
-                                <div style="color:var(--danger);">${o.stop_loss}</div>
-                            </div>
-                            <div style="background:var(--bg-secondary);padding:10px;border-radius:6px;">
-                                <div style="color:var(--text-secondary);font-size:0.8em;">Target 1</div>
-                                <div style="color:var(--success);">${o.target_1}</div>
-                            </div>
-                            <div style="background:var(--bg-secondary);padding:10px;border-radius:6px;">
-                                <div style="color:var(--text-secondary);font-size:0.8em;">Max Hold</div>
-                                <div>${o.max_hold_time}</div>
-                            </div>
-                        </div>
-                        <details>
-                            <summary style="cursor:pointer;color:var(--accent);">📚 Learn from this trade</summary>
-                            <div style="padding:15px;background:var(--bg-secondary);margin-top:10px;border-radius:6px;white-space:pre-wrap;">${o.lesson}</div>
-                        </details>
-                    </div>
-                `).join('');
-            } else {
-                document.getElementById('opportunitiesEmpty').style.display = 'block';
-                document.getElementById('opportunitiesEmpty').innerHTML = '<p style="color:var(--text-secondary);">No clear opportunities found right now. Market conditions may be mixed.</p>';
-            }
-        }
-
-        // Education - Simple Markdown to HTML converter
-        function mdToHtml(md) {
-            return md
-                .replace(/^### (.*$)/gim, '<h4>$1</h4>')
-                .replace(/^## (.*$)/gim, '<h3 style="color:var(--accent);margin-top:20px;">$1</h3>')
-                .replace(/^# (.*$)/gim, '<h2 style="color:var(--accent);margin-top:25px;">$1</h2>')
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/^\- (.*$)/gim, '<li>$1</li>')
-                .replace(/^(\d+)\. (.*$)/gim, '<li>$2</li>')
-                .replace(/\n\n/g, '</p><p style="margin:10px 0;">')
-                .replace(/\n/g, '<br>');
-        }
-
-        async function showLessonCategory(category) {
-            const contentEl = document.getElementById('lessonContent');
-            const textEl = document.getElementById('lessonText');
-
-            // Show loading
-            contentEl.style.display = 'block';
-            textEl.innerHTML = '<p style="text-align:center;">Loading lessons...</p>';
-
-            try {
-                const data = await api('education/' + category);
-
-                if (!data.success) {
-                    textEl.innerHTML = '<p style="color:var(--danger);">Error loading lessons: ' + (data.error || 'Unknown error') + '</p>';
-                    return;
-                }
-
-                if (!data.lessons || data.lessons.length === 0) {
-                    textEl.innerHTML = '<p style="color:var(--warning);">No lessons available for this category yet. Coming soon!</p>';
-                    return;
-                }
-
-                let html = '<h2 style="color:var(--accent);border-bottom:2px solid var(--accent);padding-bottom:10px;">' +
-                    category.toUpperCase().replace('_', ' ') + ' - ' + data.lessons.length + ' Lessons</h2>';
-
-                data.lessons.forEach((lesson, i) => {
-                    html += '<div style="margin:30px 0;padding:20px;background:var(--bg-secondary);border-radius:10px;border-left:4px solid var(--accent);">';
-                    html += '<h3 style="margin-bottom:15px;">Lesson ' + (i+1) + ': ' + lesson.title + '</h3>';
-                    html += '<span style="background:var(--accent);color:white;padding:3px 10px;border-radius:4px;font-size:0.8em;">' + lesson.difficulty.toUpperCase() + '</span>';
-                    html += '<div style="margin-top:20px;line-height:1.8;">' + mdToHtml(lesson.content) + '</div>';
-
-                    if (lesson.key_takeaways && lesson.key_takeaways.length > 0) {
-                        html += '<div style="margin-top:20px;padding:15px;background:var(--bg-card);border-radius:8px;">';
-                        html += '<h4 style="color:var(--success);margin-bottom:10px;">📌 Key Takeaways</h4><ul style="margin-left:20px;">';
-                        lesson.key_takeaways.forEach(t => html += '<li style="margin:5px 0;">' + t + '</li>');
-                        html += '</ul></div>';
-                    }
-                    html += '</div>';
-                });
-
-                textEl.innerHTML = html;
-            } catch (err) {
-                console.error('Education error:', err);
-                textEl.innerHTML = '<p style="color:var(--danger);">Failed to load lessons. Please try again.</p>';
-            }
-        }
-
-        function hideLessonContent() {
-            document.getElementById('lessonContent').style.display = 'none';
-        }
-
-        // AI Assistant Chat
-        async function sendChat() {
-            const input = document.getElementById('chatInput');
-            const message = input.value.trim();
-            if (!message) return;
-
-            // Add user message
-            addChatMessage('user', message);
-            input.value = '';
-
-            // Show typing indicator
-            const typingId = addChatMessage('assistant', '🤖 Thinking...');
-
-            try {
-                const response = await api('chat', 'POST', { message });
-
-                // Remove typing indicator
-                document.getElementById(typingId).remove();
-
-                if (response.success) {
-                    addChatMessage('assistant', response.response.message, response.response.suggestions);
-
-                    // If action was taken, refresh relevant data
-                    if (response.response.action_taken) {
-                        refreshAll();
-                    }
-                } else {
-                    addChatMessage('assistant', 'Sorry, something went wrong. Please try again.');
-                }
-            } catch (e) {
-                document.getElementById(typingId).remove();
-                addChatMessage('assistant', 'Error: ' + e.message);
-            }
-        }
-
-        function quickChat(message) {
-            document.getElementById('chatInput').value = message;
-            sendChat();
-        }
-
-        function addChatMessage(role, message, suggestions = []) {
-            const container = document.getElementById('chatMessages');
-            const id = 'msg-' + Date.now();
-
-            const isUser = role === 'user';
-            const bgColor = isUser ? 'var(--bg-card)' : 'var(--accent)';
-            const align = isUser ? 'flex-end' : 'flex-start';
-
-            let html = `
-                <div id="${id}" class="chat-message ${role}" style="display:flex;justify-content:${align};margin-bottom:15px;">
-                    <div style="background:${bgColor};padding:15px;border-radius:12px;max-width:80%;">
-                        ${isUser ? '<strong>You</strong>' : '<strong>🤖 AI Assistant</strong>'}
-                        <div style="margin-top:10px;white-space:pre-wrap;">${message.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')}</div>
-            `;
-
-            if (suggestions && suggestions.length > 0) {
-                html += '<div style="margin-top:15px;display:flex;flex-wrap:wrap;gap:8px;">';
-                suggestions.forEach(s => {
-                    html += `<button class="btn btn-outline" onclick="quickChat('${s}')" style="font-size:0.85em;padding:5px 10px;">${s}</button>`;
-                });
-                html += '</div>';
-            }
-
-            html += '</div></div>';
-
-            container.innerHTML += html;
-            container.scrollTop = container.scrollHeight;
-
-            return id;
-        }
-
+        // =====================
+        // INIT
+        // =====================
+        window.addEventListener('DOMContentLoaded', function() {
+            loadDashboard();
+        });
     </script>
 </body>
 </html>
@@ -1712,80 +772,23 @@ def api_scan():
 
         return jsonify({"success": True, "signals": result})
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
-
-@app.route('/api/auto-trade', methods=['POST'])
-def api_auto_trade():
-    """Execute all high-confidence signals"""
-    try:
-        engine.reload_settings()
-        signals = engine.scan_all()
-
-        executed = 0
-        for symbol, sig in signals.items():
-            if sig.confidence >= engine.min_confidence:
-                if sig.signal in [SignalType.BUY, SignalType.STRONG_BUY]:
-                    if engine.execute_buy(symbol, sig):
-                        executed += 1
-
-        return jsonify({"success": True, "message": f"Executed {executed} trades"})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
-
-@app.route('/api/trade', methods=['POST'])
-def api_trade():
-    """Execute a single trade"""
-    try:
-        data = request.json
-        symbol = data.get('symbol')
-        side = data.get('side')
-
-        if side == 'buy':
-            sig = engine.last_signals.get(symbol)
-            if sig:
-                success = engine.execute_buy(symbol, sig)
-                return jsonify({"success": success, "message": f"Bought {symbol}" if success else "Buy failed"})
-        elif side == 'sell':
-            success = engine.execute_sell(symbol)
-            return jsonify({"success": success, "message": f"Sold {symbol}" if success else "Sell failed"})
-
-        return jsonify({"success": False, "message": "Invalid request"})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
-
-@app.route('/api/close-all', methods=['POST'])
-def api_close_all():
-    """Close all positions"""
-    try:
-        positions = db.get_positions()
-        for pos in positions:
-            engine.execute_sell(pos.symbol)
-        return jsonify({"success": True, "message": f"Closed {len(positions)} positions"})
-    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"success": False, "error": str(e)})
 
 
 @app.route('/api/portfolio')
 def api_portfolio():
-    """Get portfolio details"""
+    """Get portfolio"""
     try:
-        data = engine.get_portfolio_value()
+        portfolio = engine.get_portfolio_value()
         return jsonify({
             "success": True,
-            "cash": data["cash"],
-            "positions_value": data["positions_value"],
-            "equity": data["equity"],
-            "positions": [{
-                "symbol": p.symbol,
-                "quantity": p.quantity,
-                "entry_price": p.entry_price,
-                "current_price": p.current_price,
-                "stop_loss": p.stop_loss,
-                "take_profit": p.take_profit
-            } for p in data["positions"]]
+            "cash": portfolio["cash"],
+            "positions_value": portfolio["positions_value"],
+            "equity": portfolio["equity"],
+            "positions": [{"symbol": p.symbol, "quantity": p.quantity, "entry_price": p.entry_price,
+                           "current_price": p.current_price} for p in portfolio["positions"]]
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
@@ -1795,18 +798,38 @@ def api_portfolio():
 def api_trades():
     """Get trade history"""
     try:
-        trades = db.get_trades(50)
+        trades = db.get_trades(limit=50)
         return jsonify({
             "success": True,
             "trades": [{
+                "id": t.id,
                 "symbol": t.symbol,
                 "side": t.side,
                 "quantity": t.quantity,
                 "price": t.price,
                 "pnl": t.pnl,
-                "timestamp": t.timestamp
+                "timestamp": t.timestamp.strftime("%Y-%m-%d %H:%M")
             } for t in trades]
         })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@app.route('/api/trade', methods=['POST'])
+def api_trade():
+    """Execute a trade"""
+    try:
+        data = request.json
+        symbol = data.get('symbol')
+        side = data.get('side')
+        amount = float(data.get('amount', 10))
+
+        if side == 'buy':
+            success = engine.execute_buy(symbol, amount)
+        else:
+            success = engine.execute_sell(symbol)
+
+        return jsonify({"success": success})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
@@ -1817,114 +840,35 @@ def api_settings():
     try:
         if request.method == 'POST':
             data = request.json
-            for key, value in data.items():
-                if key in ['stocks', 'crypto']:
-                    db.set_setting(key, json.dumps(value))
-                elif key in ['enable_news', 'enable_social']:
-                    db.set_setting(key, 'true' if value else 'false')
-                else:
-                    db.set_setting(key, str(value))
-
+            db.update_settings(data)
             engine.reload_settings()
-            return jsonify({"success": True, "message": "Settings saved!"})
+            return jsonify({"success": True})
         else:
-            settings = db.get_all_settings()
-            return jsonify({
-                "success": True,
-                "initial_capital": float(settings.get("initial_capital", 100)),
-                "risk_level": settings.get("risk_level", "moderate"),
-                "min_confidence": float(settings.get("min_confidence", 0.65)),
-                "scan_interval": int(settings.get("scan_interval", 5)),
-                "stocks": json.loads(settings.get("stocks", '["NVDA", "SPY", "QQQ"]')),
-                "crypto": json.loads(settings.get("crypto", '["bitcoin", "ethereum"]')),
-                "enable_news": settings.get("enable_news", "true") == "true",
-                "enable_social": settings.get("enable_social", "true") == "true"
-            })
+            settings = db.get_settings()
+            return jsonify({"success": True, "settings": settings})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
 
-@app.route('/api/alerts')
-def api_alerts():
-    """Get alerts"""
-    try:
-        alerts = db.get_alerts()
-        return jsonify({
-            "success": True,
-            "alerts": [{
-                "id": a.id,
-                "type": a.type,
-                "symbol": a.symbol,
-                "message": a.message,
-                "severity": a.severity,
-                "timestamp": a.timestamp,
-                "read": a.read
-            } for a in alerts]
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
-
-@app.route('/api/alerts/read-all', methods=['POST'])
-def api_mark_alerts_read():
-    """Mark all alerts as read"""
-    try:
-        db.mark_all_alerts_read()
-        return jsonify({"success": True})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
-
-# =============================================================================
-# NEW ADVANCED API ROUTES
-# =============================================================================
-
-@app.route('/api/deep-analysis/<asset>', methods=['POST'])
+@app.route('/api/deep-analysis/<asset>')
 def api_deep_analysis(asset):
-    """
-    Run multi-agent deep analysis on an asset
-    Uses all agents: Technical, Fundamental, News, Social, Risk
-    """
+    """Run deep multi-agent analysis"""
     try:
-        print(f"\n🔬 Running deep analysis for {asset}...")
-
-        # Run the coordinator analysis
-        analysis = coordinator.analyze(asset, capital=100)
-
-        # Format agent opinions for response
-        agent_opinions = {}
-        for name, opinion in analysis.agent_opinions.items():
-            agent_opinions[name] = {
-                "agent": opinion.agent_name,
-                "action": opinion.action.value,
-                "confidence": opinion.confidence.name,
-                "reasoning": opinion.reasoning,
-                "key_factors": opinion.key_factors,
-                "suggested_hold_time": opinion.suggested_hold_time,
-                "entry_timing": opinion.entry_timing
-            }
+        print(f"\n🔬 Running deep analysis on {asset}...")
+        analysis = coordinator.analyze(asset)
 
         return jsonify({
             "success": True,
             "analysis": {
-                "asset": analysis.asset,
-                "action": analysis.action.value,
-                "confidence": analysis.confidence.name,
-                "consensus_level": analysis.consensus_level,
-                "summary": analysis.summary,
-                "key_reasons": analysis.key_reasons,
-                "primary_opportunity": analysis.primary_opportunity,
-                "primary_risk": analysis.primary_risk,
-                "recommended_entry": analysis.recommended_entry,
-                "recommended_exit": analysis.recommended_exit,
-                "position_size_pct": analysis.position_size_pct,
-                "stop_loss_pct": analysis.stop_loss_pct,
-                "take_profit_pct": analysis.take_profit_pct,
-                "suggested_hold_time": analysis.suggested_hold_time,
-                "agent_opinions": agent_opinions,
-                "learning_points": analysis.learning_points,
-                "what_to_watch": analysis.what_to_watch,
-                "warnings": analysis.warnings
+                "symbol": asset,
+                "recommendation": analysis.get("recommendation", "HOLD"),
+                "confidence": analysis.get("confidence", 0),
+                "entry_zone": analysis.get("entry_zone", []),
+                "targets": analysis.get("targets", []),
+                "stop_loss": analysis.get("stop_loss"),
+                "hold_time": analysis.get("hold_time"),
+                "votes": analysis.get("votes", {}),
+                "reasoning": analysis.get("reasoning", [])
             }
         })
     except Exception as e:
@@ -1935,32 +879,26 @@ def api_deep_analysis(asset):
 
 @app.route('/api/opportunities', methods=['POST'])
 def api_opportunities():
-    """
-    Scan all assets for trading opportunities with detailed explanations
-    """
+    """Find trading opportunities"""
     try:
         print("\n🔍 Scanning for opportunities...")
         all_opportunities = []
 
-        assets = ['BTC', 'ETH', 'SPY', 'QQQ', 'NVDA']
+        for symbol in engine.symbols:
+            print(f"  Analyzing {symbol}...")
+            opps = detector.find_opportunities(symbol, coordinator)
+            for opp in opps:
+                all_opportunities.append({
+                    "symbol": opp.symbol,
+                    "opportunity_type": opp.opportunity_type.value,
+                    "confidence": opp.confidence,
+                    "explanation": opp.explanation,
+                    "entry_zone": opp.entry_zone,
+                    "targets": opp.targets,
+                    "stop_loss": opp.stop_loss
+                })
 
-        for asset in assets:
-            print(f"  Analyzing {asset}...")
-            try:
-                # Run analysis
-                analysis = coordinator.analyze(asset, capital=100)
-
-                # Detect opportunities
-                opportunities = detector.detect_opportunities(analysis)
-
-                for opp in opportunities:
-                    all_opportunities.append(opp.to_dict())
-            except Exception as e:
-                print(f"  Error analyzing {asset}: {e}")
-                continue
-
-        # Sort by strength
-        all_opportunities.sort(key=lambda x: x['strength'], reverse=True)
+        all_opportunities.sort(key=lambda x: x["confidence"], reverse=True)
 
         return jsonify({
             "success": True,
@@ -1974,11 +912,8 @@ def api_opportunities():
 
 @app.route('/api/education/<category>')
 def api_education(category):
-    """
-    Get educational lessons by category
-    """
+    """Get educational lessons by category"""
     try:
-        # Map category string to enum
         category_map = {
             'basics': LessonCategory.BASICS,
             'technical': LessonCategory.TECHNICAL,
@@ -2012,245 +947,107 @@ def api_education(category):
         return jsonify({"success": False, "error": str(e)})
 
 
-@app.route('/api/education/lesson/<lesson_id>')
-def api_lesson(lesson_id):
-    """
-    Get a specific lesson
-    """
-    try:
-        lesson = teacher.get_lesson(lesson_id)
-        if not lesson:
-            return jsonify({"success": False, "error": "Lesson not found"})
-
-        return jsonify({
-            "success": True,
-            "lesson": {
-                "id": lesson.id,
-                "title": lesson.title,
-                "category": lesson.category.value,
-                "difficulty": lesson.difficulty,
-                "content": lesson.content,
-                "key_takeaways": lesson.key_takeaways,
-                "related_lessons": lesson.related_lessons
-            }
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
-
-@app.route('/api/agent-teachings')
-def api_agent_teachings():
-    """
-    Get educational content from all agents
-    """
-    try:
-        teachings = coordinator.get_all_teaching_content()
-        return jsonify({
-            "success": True,
-            "teachings": teachings
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
-
-# =============================================================================
-# AI ASSISTANT CHAT API
-# =============================================================================
-
 @app.route('/api/chat', methods=['POST'])
 def api_chat():
-    """
-    Chat with the AI Trading Assistant
-    Natural language interface to control the entire system
-    """
+    """Chat with AI assistant"""
     try:
         data = request.json
         message = data.get('message', '')
 
-        if not message:
-            return jsonify({"success": False, "error": "No message provided"})
-
-        # Process message through assistant
-        response = assistant.process_message(message)
+        response = assistant.chat(message)
 
         return jsonify({
             "success": True,
             "response": {
-                "message": response.message,
-                "action_taken": response.action_taken,
-                "data": response.data,
-                "suggestions": response.suggestions,
-                "follow_up_prompt": response.follow_up_prompt
+                "message": response.get("message", "I didn't understand that."),
+                "action_taken": response.get("action_taken", False)
             }
         })
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         return jsonify({"success": False, "error": str(e)})
 
 
-# =============================================================================
-# BROKER API ROUTES (Alpaca + Binance)
-# =============================================================================
-
-@app.route('/api/brokers/status')
-def api_brokers_status():
-    """Get connection status for all brokers"""
+@app.route('/api/alerts')
+def api_alerts():
+    """Get alerts"""
     try:
-        status = broker_manager.get_status()
+        alerts = db.get_alerts(limit=20)
         return jsonify({
             "success": True,
-            "alpaca": status["alpaca"],
-            "binance": status["binance"]
+            "alerts": [{
+                "id": a.id,
+                "type": a.alert_type,
+                "message": a.message,
+                "timestamp": a.timestamp.strftime("%Y-%m-%d %H:%M"),
+                "read": a.read
+            } for a in alerts]
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
+
+
+# =============================================================================
+# BROKER API ROUTES
+# =============================================================================
+
+@app.route('/api/brokers/status')
+def api_broker_status():
+    """Get broker connection status"""
+    return jsonify({
+        "success": True,
+        "alpaca": bool(getattr(broker_manager.alpaca, 'api_key', None)),
+        "binance": bool(getattr(broker_manager.binance, 'api_key', None))
+    })
 
 
 @app.route('/api/brokers/alpaca/test', methods=['POST'])
 def api_test_alpaca():
-    """Test Alpaca API connection"""
+    """Test Alpaca connection"""
     try:
         data = request.json
-        api_key = data.get('api_key')
-        secret_key = data.get('secret_key')
-        paper = data.get('paper', True)
-
-        if not api_key or not secret_key:
-            return jsonify({"success": False, "error": "API key and secret required"})
-
-        result = broker_manager.configure_alpaca(api_key, secret_key, paper)
-        return jsonify(result)
+        broker_manager.alpaca.configure(
+            data.get('api_key'),
+            data.get('api_secret'),
+            data.get('paper', True)
+        )
+        account = broker_manager.alpaca.get_account()
+        return jsonify({"success": True, "account": account})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
 
 @app.route('/api/brokers/binance/test', methods=['POST'])
 def api_test_binance():
-    """Test Binance API connection"""
+    """Test Binance connection"""
     try:
         data = request.json
-        api_key = data.get('api_key')
-        secret_key = data.get('secret_key')
-        testnet = data.get('testnet', True)
-
-        if not api_key or not secret_key:
-            return jsonify({"success": False, "error": "API key and secret required"})
-
-        result = broker_manager.configure_binance(api_key, secret_key, testnet)
-        return jsonify(result)
+        broker_manager.binance.configure(
+            data.get('api_key'),
+            data.get('api_secret'),
+            data.get('testnet', True)
+        )
+        account = broker_manager.binance.get_account()
+        return jsonify({"success": True, "account": account})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
 
-@app.route('/api/brokers/buy', methods=['POST'])
-def api_broker_buy():
-    """Execute a real buy order through connected broker"""
-    try:
-        data = request.json
-        symbol = data.get('symbol')
-        amount = data.get('amount')  # Dollar amount
-        qty = data.get('qty')  # Quantity (alternative)
-
-        if not symbol:
-            return jsonify({"success": False, "error": "Symbol required"})
-
-        # Check if broker is connected for this symbol
-        can_trade = broker_manager.can_trade(symbol)
-        if not can_trade["can_trade"]:
-            return jsonify({
-                "success": False,
-                "error": f"{can_trade['broker'].upper()} not connected. Add API keys in Settings."
-            })
-
-        result = broker_manager.buy(symbol, amount=amount, qty=qty)
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
-
-@app.route('/api/brokers/sell', methods=['POST'])
-def api_broker_sell():
-    """Execute a real sell order through connected broker"""
-    try:
-        data = request.json
-        symbol = data.get('symbol')
-        qty = data.get('qty')
-        close_all = data.get('close_all', False)
-
-        if not symbol:
-            return jsonify({"success": False, "error": "Symbol required"})
-
-        can_trade = broker_manager.can_trade(symbol)
-        if not can_trade["can_trade"]:
-            return jsonify({
-                "success": False,
-                "error": f"{can_trade['broker'].upper()} not connected"
-            })
-
-        result = broker_manager.sell(symbol, qty=qty, close_all=close_all)
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
-
-@app.route('/api/brokers/positions')
-def api_broker_positions():
-    """Get all real positions from connected brokers"""
-    try:
-        positions = broker_manager.get_all_positions()
-        return jsonify({
-            "success": True,
-            "positions": [
-                {
-                    "symbol": p.symbol,
-                    "asset_type": p.asset_type,
-                    "quantity": p.quantity,
-                    "entry_price": p.entry_price,
-                    "current_price": p.current_price,
-                    "market_value": p.market_value,
-                    "unrealized_pnl": p.unrealized_pnl,
-                    "unrealized_pnl_pct": p.unrealized_pnl_pct,
-                    "broker": p.broker
-                }
-                for p in positions
-            ]
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
-
-@app.route('/api/brokers/equity')
-def api_broker_equity():
-    """Get total equity from all connected brokers"""
-    try:
-        equity = broker_manager.get_total_equity()
-        return jsonify({
-            "success": True,
-            **equity
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
+# =============================================================================
+# RUN APP
+# =============================================================================
 
 def run_app(host='0.0.0.0', port=5000, debug=False):
     """Run the application"""
     print("\n" + "=" * 60)
-    print("  🏦 SHOPGUARD TRADING PLATFORM v2.0")
+    print("  SHOPGUARD TRADING PLATFORM")
     print("=" * 60)
     print(f"\n  URL: http://localhost:{port}")
-    print("\n  🤖 AI ASSISTANT - Control everything with natural language!")
-    print("     Just say: 'Buy Bitcoin', 'Analyze ETH', 'Explain RSI'")
-    print("\n  CORE FEATURES:")
-    print("    ✓ Real-time market data (CoinGecko + Yahoo Finance)")
-    print("    ✓ AI trading signals with confidence scores")
-    print("    ✓ Auto-trading with stop loss & take profit")
-    print("    ✓ Portfolio management & trade history")
-    print("\n  ADVANCED FEATURES:")
-    print("    🧠 Multi-Agent Deep Analysis (5 specialized agents)")
-    print("    💡 Opportunity Detection with full explanations")
-    print("    📚 Complete Trading Education System")
-    print("    🎯 Recommended hold times and entry/exit points")
+    print("\n  Features:")
+    print("    - Real-time market data")
+    print("    - AI trading signals")
+    print("    - Multi-agent analysis")
+    print("    - Trading education")
+    print("    - Auto-trading")
     print("\n" + "=" * 60 + "\n")
 
     app.run(host=host, port=port, debug=debug)
