@@ -106,16 +106,25 @@ class Matrix:
 
     def _init_asset(self, asset: str) -> MarketState:
         """Initialize state for a new asset"""
-        # Different base prices for different assets
+        # Parse asset symbol (handle "BTC/USDT" -> "BTC")
+        base_symbol = asset.split('/')[0].upper()
+
+        # Realistic base prices (December 2024)
         base_prices = {
-            'BTC': 42000.0,
-            'ETH': 2200.0,
-            'SPY': 480.0,
-            'QQQ': 420.0,
-            'NVDA': 500.0
+            'BTC': 95000.0,
+            'ETH': 3400.0,
+            'SOL': 190.0,
+            'XRP': 2.20,
+            'ADA': 0.95,
+            'DOGE': 0.32,
+            'SPY': 595.0,
+            'QQQ': 520.0,
+            'NVDA': 135.0,
+            'AAPL': 250.0,
+            'TSLA': 420.0,
         }
 
-        price = base_prices.get(asset, self.base_price)
+        price = base_prices.get(base_symbol, self.base_price)
         history = [price * (1 + self.rng.gauss(0, 0.01)) for _ in range(30)]
         history.append(price)
 
@@ -405,7 +414,12 @@ class Matrix:
         return self._build_tick_data(asset, state)
 
     def _build_tick_data(self, asset: str, state: MarketState) -> Dict[str, Any]:
-        """Build the market data dict for consumption by coordinator"""
+        """Build the market data dict for consumption by coordinator and TitanBrain"""
+
+        # Scale entropy to TitanBrain's expected range (2.0-3.5)
+        # Internal state.entropy is 0-1, TitanBrain expects ~2.0-3.5
+        # Low entropy (ordered) = 2.0, High entropy (chaos) = 3.5
+        scaled_entropy = 2.0 + (state.entropy * 1.5)
 
         # Determine entropy signal
         if state.entropy < 0.4:
@@ -460,13 +474,15 @@ class Matrix:
             "source": "matrix",
 
             # Price data
-            "price": state.price,
+            "price": round(state.price, 2),
             "price_history": list(state.price_history),
             "volume": state.volume + self.rng.uniform(-1e8, 1e8),
             "change_24h": ((state.price / state.price_history[0]) - 1) * 100 if state.price_history else 0,
 
             # Physics metrics (Technical Agent)
-            "entropy": round(state.entropy, 4),
+            # Use scaled_entropy for TitanBrain compatibility (2.0-3.5 range)
+            "entropy": round(scaled_entropy, 4),
+            "entropy_raw": round(state.entropy, 4),  # Original 0-1 scale
             "entropy_signal": entropy_signal,
             "hurst": round(state.hurst, 4),
             "hurst_signal": hurst_signal,
@@ -475,6 +491,8 @@ class Matrix:
             "physics_check_passed": physics_check_passed,
 
             # Bio metrics (Social Agent)
+            # Add both keys for compatibility
+            "viral_k": round(state.viral_k, 3),
             "viral_k_factor": round(state.viral_k, 3),
             "viral_acceleration": round(state.viral_acceleration, 3),
             "viral_signal": viral_signal,
@@ -487,7 +505,8 @@ class Matrix:
             "distribution_detected": state.distribution,
             "micro_check_passed": micro_check_passed,
 
-            # Phase info (for debugging)
+            # Phase info - use both keys for compatibility
+            "phase": state.phase.value,
             "market_phase": state.phase.value,
             "phase_tick": state.phase_tick,
 
