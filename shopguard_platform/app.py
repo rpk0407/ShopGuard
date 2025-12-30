@@ -37,6 +37,7 @@ try:
     from .src.evolution.darwin import Darwin, EvolutionConfig, Genome
     from .src.core.titan_brain import TitanBrain, EvolvingBrain, BrainConfig
     from .src.core.fast_math import FastMath
+    from .src.core.ecosystem import TitanEcosystem, EcosystemConfig
 
     darwin_config = EvolutionConfig(
         population_size=50,
@@ -50,16 +51,33 @@ try:
     fast_math = FastMath()
     fast_math.warmup()  # Pre-compile JIT functions
 
+    # Initialize TITAN ECOSYSTEM (unified trading organism)
+    ecosystem_config = EcosystemConfig(
+        initial_capital=10000.0,
+        max_concurrent_positions=3,
+        enable_evolution=True,
+        enable_paper_trading=True
+    )
+    ecosystem = TitanEcosystem(config=ecosystem_config)
+    ecosystem.attach_darwin(darwin)
+    if matrix:
+        ecosystem.attach_matrix(matrix)
+    ecosystem.start()
+
     DARWIN_AVAILABLE = True
+    ECOSYSTEM_AVAILABLE = True
     print("  ✓ Darwin Evolution Engine initialized (50 mutants)")
     print("  ✓ TitanBrain with dynamic config ready")
     print("  ✓ FastMath JIT acceleration enabled")
+    print("  ✓ 🌍 TITAN Ecosystem fully integrated")
 except ImportError as e:
     darwin = None
     titan_brain = None
     fast_math = None
+    ecosystem = None
     DARWIN_AVAILABLE = False
-    print(f"  ⚠ Darwin not available: {e}")
+    ECOSYSTEM_AVAILABLE = False
+    print(f"  ⚠ Darwin/Ecosystem not available: {e}")
 
 # SSE clients for Matrix streaming
 matrix_clients = []
@@ -2654,6 +2672,153 @@ def api_brain_config():
 
 
 # =============================================================================
+# TITAN ECOSYSTEM API
+# =============================================================================
+
+@app.route('/api/ecosystem/status')
+def api_ecosystem_status():
+    """Get comprehensive ecosystem status"""
+    if not ECOSYSTEM_AVAILABLE or not ecosystem:
+        return jsonify({'success': False, 'error': 'Ecosystem not available'})
+
+    try:
+        status = ecosystem.get_status()
+        return jsonify({
+            'success': True,
+            'status': status
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ecosystem/performance')
+def api_ecosystem_performance():
+    """Get ecosystem performance metrics"""
+    if not ECOSYSTEM_AVAILABLE or not ecosystem:
+        return jsonify({'success': False, 'error': 'Ecosystem not available'})
+
+    try:
+        metrics = ecosystem.get_performance()
+        return jsonify({
+            'success': True,
+            'metrics': {
+                'total_return': metrics.total_return,
+                'total_return_pct': metrics.total_return_pct,
+                'sharpe_ratio': metrics.sharpe_ratio,
+                'sortino_ratio': metrics.sortino_ratio,
+                'win_rate': metrics.win_rate,
+                'profit_factor': metrics.profit_factor,
+                'max_drawdown_pct': metrics.max_drawdown_pct,
+                'total_trades': metrics.total_trades,
+                'expectancy': metrics.expectancy,
+                'expectancy_r': metrics.expectancy_r
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ecosystem/positions')
+def api_ecosystem_positions():
+    """Get open positions"""
+    if not ECOSYSTEM_AVAILABLE or not ecosystem:
+        return jsonify({'success': False, 'error': 'Ecosystem not available'})
+
+    try:
+        status = ecosystem.get_status()
+        return jsonify({
+            'success': True,
+            'positions': status.get('positions', {}),
+            'portfolio': status.get('portfolio', {})
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ecosystem/journal')
+def api_ecosystem_journal():
+    """Get trade journal summary"""
+    if not ECOSYSTEM_AVAILABLE or not ecosystem:
+        return jsonify({'success': False, 'error': 'Ecosystem not available'})
+
+    try:
+        journal_stats = ecosystem.journal.get_stats()
+        recent_trades = [t.to_dict() for t in ecosystem.journal.get_recent_trades(20)]
+        return jsonify({
+            'success': True,
+            'stats': journal_stats,
+            'recent_trades': recent_trades
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ecosystem/alerts')
+def api_ecosystem_alerts():
+    """Get recent alerts"""
+    if not ECOSYSTEM_AVAILABLE or not ecosystem:
+        return jsonify({'success': False, 'error': 'Ecosystem not available'})
+
+    try:
+        alerts = ecosystem.alerts.get_alerts(limit=50)
+        return jsonify({
+            'success': True,
+            'alerts': [a.to_dict() for a in alerts],
+            'unacknowledged': ecosystem.alerts.get_unacknowledged_count()
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ecosystem/regime')
+def api_ecosystem_regime():
+    """Get regime analysis"""
+    if not ECOSYSTEM_AVAILABLE or not ecosystem:
+        return jsonify({'success': False, 'error': 'Ecosystem not available'})
+
+    try:
+        analysis = ecosystem.get_regime_analysis()
+        return jsonify({
+            'success': True,
+            'analysis': analysis
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ecosystem/reset', methods=['POST'])
+def api_ecosystem_reset():
+    """Reset ecosystem to initial state"""
+    if not ECOSYSTEM_AVAILABLE or not ecosystem:
+        return jsonify({'success': False, 'error': 'Ecosystem not available'})
+
+    try:
+        ecosystem.reset()
+        return jsonify({
+            'success': True,
+            'message': 'Ecosystem reset to initial state'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/ecosystem/evolve', methods=['POST'])
+def api_ecosystem_evolve():
+    """Run a single evolution generation"""
+    if not ECOSYSTEM_AVAILABLE or not ecosystem:
+        return jsonify({'success': False, 'error': 'Ecosystem not available'})
+
+    try:
+        result = ecosystem.run_generation()
+        return jsonify({
+            'success': True,
+            'result': result
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+# =============================================================================
 # RUN APP
 # =============================================================================
 
@@ -2675,6 +2840,13 @@ def run_app(host='0.0.0.0', port=5000, debug=False):
         print("    ✓ 🧬 Darwin Evolution Engine (50 mutants, auto-optimization)")
         print("    ✓ 🧠 TitanBrain with dynamic config hot-swap")
         print("    ✓ ⚡ FastMath Numba JIT acceleration (100x speedup)")
+    if ECOSYSTEM_AVAILABLE:
+        print("    ✓ 🌍 TITAN Ecosystem (unified trading organism)")
+        print("       - Risk Manager (Kelly sizing, circuit breakers)")
+        print("       - Order Executor (slippage, partial fills)")
+        print("       - Regime Detector (market classification)")
+        print("       - Trade Journal (performance analytics)")
+        print("       - Alert System (event propagation)")
     print("\n" + "=" * 60 + "\n")
 
     app.run(host=host, port=port, debug=debug)
