@@ -7,7 +7,8 @@ import json
 import threading
 import time
 from datetime import datetime
-from flask import Flask, render_template_string, jsonify, request
+from flask import Flask, render_template_string, jsonify, request, Response
+import queue
 
 from .database import db
 from .engine import engine, SignalType
@@ -19,6 +20,20 @@ from .brokers import BrokerManager
 
 # Initialize broker manager
 broker_manager = BrokerManager()
+
+# Initialize Matrix Simulation Engine
+try:
+    from .src.simulation.matrix import Matrix, MarketPhase
+    matrix = Matrix(crash_interval=60, tick_interval=2.0)
+    MATRIX_AVAILABLE = True
+    print("  ✓ Matrix Simulation Engine initialized")
+except ImportError:
+    matrix = None
+    MATRIX_AVAILABLE = False
+    print("  ⚠ Matrix not available - using live data only")
+
+# SSE clients for Matrix streaming
+matrix_clients = []
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -607,6 +622,9 @@ MAIN_TEMPLATE = '''
                 <button class="nav-btn" onclick="nav('opportunities')">
                     <span class="icon">💡</span> Opportunities
                 </button>
+                <button class="nav-btn" onclick="nav('matrix')">
+                    <span class="icon">🔮</span> Matrix Sim
+                </button>
             </div>
 
             <div class="nav-section">
@@ -1090,6 +1108,82 @@ MAIN_TEMPLATE = '''
                     </div>
                 </div>
             </div>
+
+            <!-- MATRIX SIMULATION -->
+            <div id="page-matrix" class="page">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">🔮 Matrix Simulation</h1>
+                        <p class="page-subtitle">Reality Simulation Engine - Perfect Storm every 60 seconds</p>
+                    </div>
+                    <div id="matrix-status" class="quick-actions">
+                        <span class="badge badge-warning">Disconnected</span>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Asset</div>
+                        <div class="stat-value" id="matrix-asset">BTC/USDT</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Price</div>
+                        <div class="stat-value" id="matrix-price">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Market Phase</div>
+                        <div class="stat-value" id="matrix-phase">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Signal</div>
+                        <div class="stat-value" id="matrix-signal">--</div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <h3 class="card-title" style="margin-bottom: 16px;">Three-Pillar Convergence</h3>
+                        <div style="display: grid; gap: 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>🧬 Bio-Check (Entropy)</span>
+                                <span id="matrix-entropy" class="badge">--</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>⚛️ Physics-Check (Hurst)</span>
+                                <span id="matrix-hurst" class="badge">--</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>🦠 Micro-Check (Viral K)</span>
+                                <span id="matrix-viral" class="badge">--</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>📊 CVD (Whale Activity)</span>
+                                <span id="matrix-cvd" class="badge">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3 class="card-title" style="margin-bottom: 16px;">Signal History</h3>
+                        <div id="matrix-history" style="max-height: 200px; overflow-y: auto;">
+                            <p style="color: var(--text-dim);">Waiting for signals...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title" style="margin-bottom: 16px;">Matrix Control</h3>
+                    <div style="display: flex; gap: 12px;">
+                        <button class="btn btn-primary" onclick="startMatrix()">▶ Start Simulation</button>
+                        <button class="btn btn-danger" onclick="stopMatrix()">⏹ Stop</button>
+                        <button class="btn btn-outline" onclick="clearMatrixHistory()">Clear History</button>
+                    </div>
+                    <p style="margin-top: 16px; color: var(--text-dim); font-size: 0.85rem;">
+                        The Matrix generates synthetic market data using Geometric Brownian Motion.
+                        Every 60 seconds, a "Perfect Storm" crash event occurs to test the convergence detection.
+                    </p>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -1560,6 +1654,117 @@ MAIN_TEMPLATE = '''
         }
 
         // =========================================
+        // MATRIX SIMULATION
+        // =========================================
+        let matrixEventSource = null;
+        let matrixHistory = [];
+
+        function startMatrix() {
+            if (matrixEventSource) {
+                matrixEventSource.close();
+            }
+
+            matrixEventSource = new EventSource('/api/matrix/stream');
+
+            matrixEventSource.onopen = function() {
+                document.getElementById('matrix-status').innerHTML =
+                    '<span class="badge badge-success">Connected</span>';
+            };
+
+            matrixEventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                updateMatrixDisplay(data);
+            };
+
+            matrixEventSource.onerror = function() {
+                document.getElementById('matrix-status').innerHTML =
+                    '<span class="badge badge-danger">Error</span>';
+                matrixEventSource.close();
+                matrixEventSource = null;
+            };
+        }
+
+        function stopMatrix() {
+            if (matrixEventSource) {
+                matrixEventSource.close();
+                matrixEventSource = null;
+            }
+            document.getElementById('matrix-status').innerHTML =
+                '<span class="badge badge-warning">Disconnected</span>';
+        }
+
+        function updateMatrixDisplay(data) {
+            // Update price and phase
+            document.getElementById('matrix-price').textContent =
+                '$' + (data.price || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('matrix-phase').textContent = (data.phase || '--').toUpperCase();
+
+            // Update signal with color
+            const signalEl = document.getElementById('matrix-signal');
+            const signal = data.signal || '--';
+            signalEl.textContent = signal;
+            signalEl.className = 'stat-value';
+            if (signal === 'STRONG_BUY') signalEl.style.color = 'var(--success)';
+            else if (signal === 'BUY') signalEl.style.color = '#22c55e';
+            else if (signal === 'EXIT') signalEl.style.color = 'var(--danger)';
+            else signalEl.style.color = 'var(--warning)';
+
+            // Update three pillars
+            const entropy = data.entropy || 0;
+            const hurst = data.hurst || 0;
+            const viral_k = data.viral_k || 0;
+            const cvd = data.cvd || 0;
+
+            updatePillarBadge('matrix-entropy', entropy, entropy < 2.5, entropy.toFixed(2));
+            updatePillarBadge('matrix-hurst', hurst, hurst > 0.6, hurst.toFixed(2));
+            updatePillarBadge('matrix-viral', viral_k, viral_k > 1.2, viral_k.toFixed(2));
+
+            const cvdEl = document.getElementById('matrix-cvd');
+            cvdEl.textContent = cvd >= 0 ? '+' + cvd.toFixed(0) : cvd.toFixed(0);
+            cvdEl.className = 'badge ' + (cvd > 0 ? 'badge-success' : 'badge-danger');
+
+            // Add to history
+            if (signal !== 'HOLD') {
+                const historyEntry = {
+                    time: new Date().toLocaleTimeString(),
+                    signal: signal,
+                    price: data.price,
+                    phase: data.phase
+                };
+                matrixHistory.unshift(historyEntry);
+                if (matrixHistory.length > 20) matrixHistory.pop();
+                updateMatrixHistory();
+            }
+        }
+
+        function updatePillarBadge(id, value, isGood, display) {
+            const el = document.getElementById(id);
+            el.textContent = display;
+            el.className = 'badge ' + (isGood ? 'badge-success' : 'badge-warning');
+        }
+
+        function updateMatrixHistory() {
+            const container = document.getElementById('matrix-history');
+            if (matrixHistory.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-dim);">Waiting for signals...</p>';
+                return;
+            }
+            container.innerHTML = matrixHistory.map(h =>
+                '<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">' +
+                    '<span style="color: var(--text-dim);">' + h.time + '</span>' +
+                    '<span class="' + (h.signal.includes('BUY') ? 'signal-buy' : 'signal-sell') + '">' + h.signal + '</span>' +
+                    '<span>$' + h.price.toFixed(2) + '</span>' +
+                    '<span class="badge">' + h.phase + '</span>' +
+                '</div>'
+            ).join('');
+        }
+
+        function clearMatrixHistory() {
+            matrixHistory = [];
+            updateMatrixHistory();
+        }
+
+        // =========================================
         // INIT
         // =========================================
         window.addEventListener('DOMContentLoaded', function() {
@@ -1916,6 +2121,87 @@ def api_test_binance():
 
 
 # =============================================================================
+# MATRIX SIMULATION STREAMING
+# =============================================================================
+
+def generate_matrix_stream():
+    """Generator for Server-Sent Events from Matrix simulation"""
+    if not MATRIX_AVAILABLE or matrix is None:
+        yield f"data: {json.dumps({'error': 'Matrix not available'})}\n\n"
+        return
+
+    price_history = []
+
+    while True:
+        try:
+            tick = matrix.tick("BTC/USDT")
+            price_history.append(tick['price'])
+            if len(price_history) > 100:
+                price_history.pop(0)
+
+            # Determine signal based on convergence
+            entropy = tick.get('entropy', 3.0)
+            hurst = tick.get('hurst', 0.5)
+            viral_k = tick.get('viral_k', 1.0)
+            cvd = tick.get('cvd', 0)
+            phase = tick.get('phase', 'stable')
+
+            # Signal logic
+            signal = "HOLD"
+            if phase in ['accumulation', 'recovery']:
+                if entropy < 2.5 and hurst > 0.6 and viral_k > 1.2:
+                    signal = "STRONG_BUY"
+                elif entropy < 3.0 and hurst > 0.55:
+                    signal = "BUY"
+            elif phase == 'crash':
+                signal = "EXIT"
+            elif phase == 'euphoria':
+                if viral_k < 0.8:
+                    signal = "EXIT"
+
+            data = {
+                'price': tick['price'],
+                'phase': phase,
+                'signal': signal,
+                'entropy': entropy,
+                'hurst': hurst,
+                'viral_k': viral_k,
+                'cvd': cvd,
+                'timestamp': tick.get('timestamp', time.time())
+            }
+
+            yield f"data: {json.dumps(data)}\n\n"
+            time.sleep(2)  # Send update every 2 seconds
+
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            time.sleep(5)
+
+
+@app.route('/api/matrix/stream')
+def api_matrix_stream():
+    """SSE endpoint for Matrix simulation streaming"""
+    return Response(
+        generate_matrix_stream(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no'
+        }
+    )
+
+
+@app.route('/api/matrix/status')
+def api_matrix_status():
+    """Check Matrix availability"""
+    return jsonify({
+        'available': MATRIX_AVAILABLE,
+        'status': 'active' if MATRIX_AVAILABLE else 'unavailable'
+    })
+
+
+# =============================================================================
 # RUN APP
 # =============================================================================
 
@@ -1931,6 +2217,8 @@ def run_app(host='0.0.0.0', port=5000, debug=False):
     print("    ✓ Natural language AI assistant")
     print("    ✓ Complete trading education")
     print("    ✓ Paper trading with $100 capital")
+    if MATRIX_AVAILABLE:
+        print("    ✓ 🔮 Matrix Simulation Engine (Perfect Storm every 60s)")
     print("\n" + "=" * 60 + "\n")
 
     app.run(host=host, port=port, debug=debug)
