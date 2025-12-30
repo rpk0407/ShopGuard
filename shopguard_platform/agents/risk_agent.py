@@ -18,6 +18,18 @@ from .base_agent import BaseAgent, AgentOpinion, Action, Confidence
 
 
 @dataclass
+class CVDMetrics:
+    """Cumulative Volume Delta metrics for whale detection"""
+    cvd_value: float  # Current CVD value
+    cvd_trend: str  # "ACCUMULATING", "DISTRIBUTING", "NEUTRAL"
+    divergence_type: str  # "BULLISH_ABSORPTION", "BEARISH_DISTRIBUTION", "NONE"
+    whale_trap_detected: bool  # Price lower low + CVD higher low = whale absorption
+    distribution_detected: bool  # Price higher high + CVD lower high = distribution
+    micro_check_passed: bool  # Entry condition: whale_trap_detected == True
+    signal_strength: float  # 0-1 how strong the divergence is
+
+
+@dataclass
 class RiskMetrics:
     """Risk metrics for an asset"""
     volatility: float  # Historical volatility %
@@ -29,6 +41,7 @@ class RiskMetrics:
     risk_level: str  # low, medium, high, extreme
     correlation_warning: bool
     liquidation_risk: float
+    cvd_metrics: CVDMetrics = None  # Whale detection metrics
 
 
 class RiskAgent(BaseAgent):
@@ -227,6 +240,164 @@ class RiskAgent(BaseAgent):
         else:
             return "LOW"
 
+    def calculate_cvd_divergence(self, prices: List[float], volumes: List[float] = None) -> CVDMetrics:
+        """
+        Calculate Cumulative Volume Delta (CVD) and detect divergences
+
+        CVD = Running sum of (Buy Volume - Sell Volume)
+
+        Since we don't have actual buy/sell volume, we estimate it from price action:
+        - Up candle: volume is considered buying pressure
+        - Down candle: volume is considered selling pressure
+
+        Whale Detection (Micro-Check):
+        - BULLISH ABSORPTION: Price makes Lower Low BUT CVD makes Higher Low
+          → Whales are buying into weakness (smart money accumulation)
+        - BEARISH DISTRIBUTION: Price makes Higher High BUT CVD makes Lower High
+          → Whales are selling into strength (smart money distribution)
+
+        Entry Condition: whale_trap_detected == True (bullish absorption)
+        Exit Condition: distribution_detected == True (bearish distribution)
+        """
+        if len(prices) < 10:
+            return CVDMetrics(
+                cvd_value=0.0,
+                cvd_trend="NEUTRAL",
+                divergence_type="NONE",
+                whale_trap_detected=False,
+                distribution_detected=False,
+                micro_check_passed=False,
+                signal_strength=0.0
+            )
+
+        # Generate synthetic volume if not provided
+        if volumes is None or len(volumes) < len(prices):
+            # Estimate volume based on price volatility
+            volumes = []
+            for i in range(len(prices)):
+                if i == 0:
+                    volumes.append(1.0)
+                else:
+                    # Higher price change = higher volume (simplified)
+                    change = abs(prices[i] - prices[i-1]) / prices[i-1]
+                    volumes.append(1.0 + change * 10)
+
+        # Calculate CVD
+        cvd_values = []
+        cvd = 0.0
+
+        for i in range(1, len(prices)):
+            price_change = prices[i] - prices[i-1]
+            volume = volumes[i] if i < len(volumes) else 1.0
+
+            # Positive price change = buying pressure, negative = selling pressure
+            if price_change > 0:
+                delta = volume  # Buy volume
+            elif price_change < 0:
+                delta = -volume  # Sell volume
+            else:
+                delta = 0
+
+            cvd += delta
+            cvd_values.append(cvd)
+
+        if not cvd_values:
+            return CVDMetrics(
+                cvd_value=0.0,
+                cvd_trend="NEUTRAL",
+                divergence_type="NONE",
+                whale_trap_detected=False,
+                distribution_detected=False,
+                micro_check_passed=False,
+                signal_strength=0.0
+            )
+
+        current_cvd = cvd_values[-1]
+
+        # Determine CVD trend
+        recent_cvd = cvd_values[-5:] if len(cvd_values) >= 5 else cvd_values
+        if len(recent_cvd) >= 2:
+            cvd_change = recent_cvd[-1] - recent_cvd[0]
+            if cvd_change > 0:
+                cvd_trend = "ACCUMULATING"
+            elif cvd_change < 0:
+                cvd_trend = "DISTRIBUTING"
+            else:
+                cvd_trend = "NEUTRAL"
+        else:
+            cvd_trend = "NEUTRAL"
+
+        # Find recent lows and highs for divergence detection
+        lookback = min(10, len(prices) - 1)
+        recent_prices = prices[-lookback:]
+        recent_cvd_subset = cvd_values[-lookback:] if len(cvd_values) >= lookback else cvd_values
+
+        # Find price lows and highs
+        price_low_idx = recent_prices.index(min(recent_prices))
+        price_high_idx = recent_prices.index(max(recent_prices))
+
+        # Find CVD lows and highs
+        cvd_low_idx = recent_cvd_subset.index(min(recent_cvd_subset)) if recent_cvd_subset else 0
+        cvd_high_idx = recent_cvd_subset.index(max(recent_cvd_subset)) if recent_cvd_subset else 0
+
+        # Detect BULLISH ABSORPTION (Whale Trap)
+        # Price making lower low but CVD making higher low
+        whale_trap_detected = False
+        signal_strength = 0.0
+
+        if len(recent_prices) >= 5 and len(recent_cvd_subset) >= 5:
+            # Compare first half to second half
+            mid = len(recent_prices) // 2
+
+            first_half_price_low = min(recent_prices[:mid])
+            second_half_price_low = min(recent_prices[mid:])
+
+            first_half_cvd_low = min(recent_cvd_subset[:mid]) if len(recent_cvd_subset) >= mid else 0
+            second_half_cvd_low = min(recent_cvd_subset[mid:]) if len(recent_cvd_subset) > mid else 0
+
+            # Bullish absorption: price lower low + CVD higher low
+            if second_half_price_low < first_half_price_low and second_half_cvd_low > first_half_cvd_low:
+                whale_trap_detected = True
+                # Signal strength based on divergence magnitude
+                price_divergence = (first_half_price_low - second_half_price_low) / first_half_price_low
+                cvd_divergence = (second_half_cvd_low - first_half_cvd_low) / abs(first_half_cvd_low) if first_half_cvd_low != 0 else 0
+                signal_strength = min(1.0, (price_divergence + abs(cvd_divergence)) * 5)
+
+        # Detect BEARISH DISTRIBUTION
+        # Price making higher high but CVD making lower high
+        distribution_detected = False
+
+        if len(recent_prices) >= 5 and len(recent_cvd_subset) >= 5:
+            mid = len(recent_prices) // 2
+
+            first_half_price_high = max(recent_prices[:mid])
+            second_half_price_high = max(recent_prices[mid:])
+
+            first_half_cvd_high = max(recent_cvd_subset[:mid]) if len(recent_cvd_subset) >= mid else 0
+            second_half_cvd_high = max(recent_cvd_subset[mid:]) if len(recent_cvd_subset) > mid else 0
+
+            # Bearish distribution: price higher high + CVD lower high
+            if second_half_price_high > first_half_price_high and second_half_cvd_high < first_half_cvd_high:
+                distribution_detected = True
+
+        # Determine divergence type
+        if whale_trap_detected:
+            divergence_type = "BULLISH_ABSORPTION"
+        elif distribution_detected:
+            divergence_type = "BEARISH_DISTRIBUTION"
+        else:
+            divergence_type = "NONE"
+
+        return CVDMetrics(
+            cvd_value=round(current_cvd, 2),
+            cvd_trend=cvd_trend,
+            divergence_type=divergence_type,
+            whale_trap_detected=whale_trap_detected,
+            distribution_detected=distribution_detected,
+            micro_check_passed=whale_trap_detected,  # Entry condition
+            signal_strength=round(signal_strength, 3)
+        )
+
     def analyze(self, asset: str, data: Dict[str, Any]) -> AgentOpinion:
         """Perform comprehensive risk assessment"""
 
@@ -242,6 +413,10 @@ class RiskAgent(BaseAgent):
 
         # Risk level
         risk_level = self.assess_risk_level(volatility, var_95, max_dd)
+
+        # Calculate CVD Divergence (Micro-Check for whale detection)
+        volumes = data.get('volume_history', None)
+        cvd_metrics = self.calculate_cvd_divergence(prices, volumes)
 
         # Position sizing
         # Estimate win rate based on other agents (default 55%)
@@ -286,6 +461,13 @@ class RiskAgent(BaseAgent):
         if correlation_warning:
             key_factors.append("⚠️ Correlation Warning: Similar positions already held")
 
+        # CVD Divergence key factors
+        key_factors.append(f"🐋 CVD Trend: {cvd_metrics.cvd_trend}")
+        if cvd_metrics.whale_trap_detected:
+            key_factors.append("🎯 MICRO-CHECK PASSED: Whale absorption detected (bullish)")
+        if cvd_metrics.distribution_detected:
+            key_factors.append("⚠️ Distribution detected: Smart money selling into strength")
+
         # Reasoning
         reasoning = self._build_reasoning(risk_level, volatility, var_95, position_sizing, correlation_warning)
 
@@ -301,6 +483,10 @@ class RiskAgent(BaseAgent):
             warnings.append(f"Asset has shown {max_dd:.0%} drawdowns historically")
         if correlation_warning:
             warnings.append("Portfolio may be overexposed to this sector")
+
+        # CVD Divergence warnings
+        if cvd_metrics.distribution_detected:
+            warnings.append("🔴 DISTRIBUTION EXIT: Smart money selling detected - consider taking profits")
 
         # Hold time based on risk
         if risk_level == "EXTREME":
@@ -344,7 +530,15 @@ class RiskAgent(BaseAgent):
                 "position_sizing": position_sizing,
                 "correlation_warning": correlation_warning,
                 "stop_loss_pct": self.default_stop_loss,
-                "take_profit_pct": self.default_take_profit
+                "take_profit_pct": self.default_take_profit,
+                # CVD Divergence metrics (Micro-Check)
+                "cvd_value": cvd_metrics.cvd_value,
+                "cvd_trend": cvd_metrics.cvd_trend,
+                "cvd_divergence_type": cvd_metrics.divergence_type,
+                "whale_trap_detected": cvd_metrics.whale_trap_detected,
+                "distribution_detected": cvd_metrics.distribution_detected,
+                "micro_check_passed": cvd_metrics.micro_check_passed,
+                "cvd_signal_strength": cvd_metrics.signal_strength
             },
             warnings=warnings
         )

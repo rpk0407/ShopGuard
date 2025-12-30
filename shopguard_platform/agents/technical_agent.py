@@ -22,6 +22,18 @@ from .base_agent import BaseAgent, AgentOpinion, Action, Confidence
 
 
 @dataclass
+class MarketStructureMetrics:
+    """Shannon Entropy and Hurst Exponent for market structure analysis"""
+    entropy: float  # Shannon Entropy (0-1 scale normalized)
+    entropy_raw: float  # Raw entropy value
+    entropy_signal: str  # "STRUCTURED", "TRANSITIONAL", "CHAOTIC"
+    hurst_exponent: float  # Hurst Exponent (0-1)
+    hurst_signal: str  # "TRENDING", "MEAN_REVERTING", "RANDOM"
+    physics_check_passed: bool  # Entry condition: Entropy < 0.6 AND Hurst > 0.65
+    market_regime: str  # "TRADEABLE", "CAUTION", "AVOID"
+
+
+@dataclass
 class TechnicalIndicators:
     """Container for all calculated technical indicators"""
     # Trend
@@ -63,6 +75,9 @@ class TechnicalIndicators:
 
     # Pattern Detection
     patterns_detected: List[str] = None
+
+    # Market Structure (Shannon Entropy + Hurst)
+    market_structure: MarketStructureMetrics = None
 
     def __post_init__(self):
         if self.support_levels is None:
@@ -321,6 +336,164 @@ class TechnicalAgent(BaseAgent):
 
         return patterns
 
+    def calculate_shannon_entropy(self, prices: List[float], bins: int = 10) -> Tuple[float, float]:
+        """
+        Calculate Shannon Entropy of price returns distribution
+
+        Shannon Entropy H = -Σ p(x) * log2(p(x))
+
+        Interpretation:
+        - Low entropy (< 0.6): Market is STRUCTURED, predictable patterns exist
+        - High entropy (> 0.9): Market is CHAOTIC, random walk, avoid trading
+
+        Physics-Check Entry Condition: H < 0.6
+        Exit Condition: H > 0.9 (circuit breaker)
+        """
+        if len(prices) < 20:
+            return 0.5, 0.5  # Default neutral
+
+        # Calculate returns
+        returns = [(prices[i] - prices[i-1]) / prices[i-1] for i in range(1, len(prices))]
+
+        if not returns:
+            return 0.5, 0.5
+
+        # Create histogram bins
+        min_ret = min(returns)
+        max_ret = max(returns)
+
+        if max_ret == min_ret:
+            return 0.0, 0.0  # All same returns = zero entropy
+
+        bin_width = (max_ret - min_ret) / bins
+
+        # Count occurrences in each bin
+        bin_counts = [0] * bins
+        for r in returns:
+            bin_idx = min(int((r - min_ret) / bin_width), bins - 1)
+            bin_counts[bin_idx] += 1
+
+        # Calculate probabilities
+        total = len(returns)
+        probabilities = [count / total for count in bin_counts if count > 0]
+
+        # Shannon entropy: H = -Σ p(x) * log2(p(x))
+        entropy_raw = 0.0
+        for p in probabilities:
+            if p > 0:
+                entropy_raw -= p * math.log2(p)
+
+        # Maximum entropy for uniform distribution
+        max_entropy = math.log2(bins)
+
+        # Normalize to 0-1 scale
+        entropy_normalized = entropy_raw / max_entropy if max_entropy > 0 else 0.5
+
+        return entropy_normalized, entropy_raw
+
+    def calculate_hurst_exponent(self, prices: List[float]) -> float:
+        """
+        Calculate Hurst Exponent using R/S (Rescaled Range) method
+
+        Hurst Exponent H interpretation:
+        - H > 0.5: TRENDING market (persistent)
+        - H = 0.5: Random walk (Brownian motion)
+        - H < 0.5: MEAN-REVERTING market (anti-persistent)
+
+        Physics-Check Entry Condition: H > 0.65 (strong trend)
+        Exit Condition: H < 0.5 (trend lost)
+        """
+        if len(prices) < 20:
+            return 0.5  # Default random walk
+
+        # Calculate returns
+        returns = [(prices[i] - prices[i-1]) / prices[i-1] for i in range(1, len(prices))]
+
+        if len(returns) < 10:
+            return 0.5
+
+        n = len(returns)
+
+        # Mean of returns
+        mean_return = sum(returns) / n
+
+        # Cumulative deviation from mean
+        cumulative_dev = []
+        running_sum = 0
+        for r in returns:
+            running_sum += (r - mean_return)
+            cumulative_dev.append(running_sum)
+
+        # Range: max - min of cumulative deviation
+        R = max(cumulative_dev) - min(cumulative_dev)
+
+        # Standard deviation of returns
+        variance = sum((r - mean_return) ** 2 for r in returns) / n
+        S = math.sqrt(variance) if variance > 0 else 0.0001
+
+        # R/S ratio
+        rs_ratio = R / S if S > 0 else 0
+
+        # Hurst exponent: H = log(R/S) / log(n)
+        if rs_ratio > 0 and n > 1:
+            hurst = math.log(rs_ratio) / math.log(n)
+        else:
+            hurst = 0.5
+
+        # Clamp to valid range [0, 1]
+        return max(0.0, min(1.0, hurst))
+
+    def calculate_market_structure(self, prices: List[float]) -> MarketStructureMetrics:
+        """
+        Combined market structure analysis using Shannon Entropy and Hurst Exponent
+
+        Physics-Check Entry Conditions:
+        - Entropy < 0.6 (market is structured, not random)
+        - Hurst > 0.65 (market is trending, not mean-reverting)
+
+        Exit Conditions (Circuit Breaker):
+        - Entropy > 0.9 (market became chaotic)
+        """
+        entropy, entropy_raw = self.calculate_shannon_entropy(prices)
+        hurst = self.calculate_hurst_exponent(prices)
+
+        # Classify entropy signal
+        if entropy < 0.6:
+            entropy_signal = "STRUCTURED"
+        elif entropy < 0.9:
+            entropy_signal = "TRANSITIONAL"
+        else:
+            entropy_signal = "CHAOTIC"
+
+        # Classify Hurst signal
+        if hurst > 0.65:
+            hurst_signal = "TRENDING"
+        elif hurst > 0.45:
+            hurst_signal = "RANDOM"
+        else:
+            hurst_signal = "MEAN_REVERTING"
+
+        # Physics-Check: Both conditions must be met for entry
+        physics_check_passed = entropy < 0.6 and hurst > 0.65
+
+        # Determine market regime
+        if physics_check_passed:
+            market_regime = "TRADEABLE"
+        elif entropy > 0.9:
+            market_regime = "AVOID"  # Circuit breaker - chaotic market
+        else:
+            market_regime = "CAUTION"
+
+        return MarketStructureMetrics(
+            entropy=round(entropy, 3),
+            entropy_raw=round(entropy_raw, 3),
+            entropy_signal=entropy_signal,
+            hurst_exponent=round(hurst, 3),
+            hurst_signal=hurst_signal,
+            physics_check_passed=physics_check_passed,
+            market_regime=market_regime
+        )
+
     def analyze(self, asset: str, data: Dict[str, Any]) -> AgentOpinion:
         """
         Perform comprehensive technical analysis
@@ -379,6 +552,9 @@ class TechnicalAgent(BaseAgent):
         # Patterns
         indicators.patterns_detected = self.detect_patterns(prices)
 
+        # Market Structure (Shannon Entropy + Hurst Exponent)
+        indicators.market_structure = self.calculate_market_structure(prices)
+
         # Generate recommendation
         action, confidence, reasoning, factors = self._generate_recommendation(indicators, current_price)
 
@@ -425,6 +601,13 @@ class TechnicalAgent(BaseAgent):
         if indicators.bollinger_width > 15:
             warnings.append("High volatility - use smaller position size")
 
+        # Market Structure warnings
+        if indicators.market_structure:
+            if indicators.market_structure.entropy > 0.9:
+                warnings.append("🔴 CIRCUIT BREAKER: Entropy > 0.9 - Market is chaotic, AVOID trading")
+            if indicators.market_structure.hurst_exponent < 0.45:
+                warnings.append("⚠️ Mean-reverting market - trend strategies may fail")
+
         return AgentOpinion(
             agent_name=self.name,
             asset=asset,
@@ -453,7 +636,14 @@ class TechnicalAgent(BaseAgent):
                 "patterns": indicators.patterns_detected,
                 "support": indicators.nearest_support,
                 "resistance": indicators.nearest_resistance,
-                "fib_levels": indicators.fib_levels
+                "fib_levels": indicators.fib_levels,
+                # Market Structure - Shannon Entropy + Hurst Exponent (Physics-Check)
+                "shannon_entropy": indicators.market_structure.entropy if indicators.market_structure else 0.5,
+                "entropy_signal": indicators.market_structure.entropy_signal if indicators.market_structure else "TRANSITIONAL",
+                "hurst_exponent": indicators.market_structure.hurst_exponent if indicators.market_structure else 0.5,
+                "hurst_signal": indicators.market_structure.hurst_signal if indicators.market_structure else "RANDOM",
+                "market_regime": indicators.market_structure.market_regime if indicators.market_structure else "CAUTION",
+                "physics_check_passed": indicators.market_structure.physics_check_passed if indicators.market_structure else False
             },
             warnings=warnings
         )

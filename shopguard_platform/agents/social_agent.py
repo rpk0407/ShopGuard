@@ -41,6 +41,17 @@ class SocialPost:
 
 
 @dataclass
+class ViralMetrics:
+    """Viral K-Factor metrics for measuring information spread velocity"""
+    k_factor: float  # Current K-Factor (rate of mention growth)
+    acceleration: float  # Change in K-Factor (2nd derivative)
+    mentions_t: int  # Current period mentions
+    mentions_t_minus_1: int  # Previous period mentions
+    is_viral: bool  # K > 1.2 and acceleration > 0
+    viral_signal: str  # "EXPLOSIVE", "GROWING", "STABLE", "DECLINING"
+
+
+@dataclass
 class SocialAnalysis:
     """Comprehensive social sentiment analysis"""
     asset: str
@@ -54,6 +65,7 @@ class SocialAnalysis:
     key_narratives: List[str]
     whale_activity: List[str]
     contrarian_signal: bool  # Extreme sentiment = potential reversal
+    viral_metrics: ViralMetrics = None  # New viral K-Factor metrics
 
 
 class SocialAgent(BaseAgent):
@@ -337,6 +349,82 @@ class SocialAgent(BaseAgent):
 
         return whale_mentions[:5]
 
+    def _calculate_viral_k_factor(self, posts: List[SocialPost]) -> ViralMetrics:
+        """
+        Calculate Viral K-Factor - measures information spread velocity
+
+        K-Factor = ΔMentions_t / ΔMentions_t-1
+
+        Bio-Check Entry Condition:
+        - K > 1.2 (viral growth)
+        - Acceleration > 0 (momentum increasing)
+
+        Exit Condition:
+        - K < 0.8 (viral death)
+        """
+        if not posts or len(posts) < 2:
+            return ViralMetrics(
+                k_factor=1.0,
+                acceleration=0.0,
+                mentions_t=len(posts),
+                mentions_t_minus_1=len(posts),
+                is_viral=False,
+                viral_signal="STABLE"
+            )
+
+        # Sort posts by creation time
+        sorted_posts = sorted(posts, key=lambda x: x.created)
+
+        # Divide into time periods (current vs previous half)
+        mid_point = len(sorted_posts) // 2
+
+        # Count mentions and engagement in each period
+        period_1_posts = sorted_posts[:mid_point]  # Older posts
+        period_2_posts = sorted_posts[mid_point:]  # Newer posts
+
+        # Weight by engagement (score + comments)
+        mentions_t_minus_1 = sum(1 + (p.score / 100) + (p.comments / 10) for p in period_1_posts)
+        mentions_t = sum(1 + (p.score / 100) + (p.comments / 10) for p in period_2_posts)
+
+        # Avoid division by zero
+        if mentions_t_minus_1 == 0:
+            mentions_t_minus_1 = 0.1
+
+        # Calculate K-Factor (growth rate)
+        k_factor = mentions_t / mentions_t_minus_1
+
+        # Calculate acceleration (would need historical K values, approximating here)
+        # Using engagement growth as proxy for acceleration
+        avg_engagement_old = sum(p.score + p.comments for p in period_1_posts) / max(len(period_1_posts), 1)
+        avg_engagement_new = sum(p.score + p.comments for p in period_2_posts) / max(len(period_2_posts), 1)
+
+        if avg_engagement_old > 0:
+            acceleration = (avg_engagement_new - avg_engagement_old) / avg_engagement_old
+        else:
+            acceleration = 0.0
+
+        # Determine viral status
+        is_viral = k_factor > 1.2 and acceleration > 0
+
+        # Classify the viral signal
+        if k_factor > 1.5 and acceleration > 0.3:
+            viral_signal = "EXPLOSIVE"  # Strong entry signal
+        elif k_factor > 1.2 and acceleration > 0:
+            viral_signal = "GROWING"  # Entry signal
+        elif k_factor > 0.8:
+            viral_signal = "STABLE"  # Neutral
+        else:
+            viral_signal = "DECLINING"  # Exit signal (viral death)
+
+        return ViralMetrics(
+            k_factor=round(k_factor, 3),
+            acceleration=round(acceleration, 3),
+            mentions_t=int(mentions_t),
+            mentions_t_minus_1=int(mentions_t_minus_1),
+            is_viral=is_viral,
+            viral_signal=viral_signal
+        )
+
     def analyze(self, asset: str, data: Dict[str, Any]) -> AgentOpinion:
         """Perform comprehensive social sentiment analysis"""
 
@@ -364,6 +452,9 @@ class SocialAgent(BaseAgent):
 
         narratives = self._extract_narratives(posts)
         whale_activity = self._detect_whale_activity(posts)
+
+        # Calculate Viral K-Factor (Bio-Check)
+        viral_metrics = self._calculate_viral_k_factor(posts)
 
         # Trending score based on engagement
         total_engagement = sum(p.score + p.comments for p in posts)
@@ -401,6 +492,11 @@ class SocialAgent(BaseAgent):
             key_factors.append(f"🐋 Whale activity detected")
         if contrarian_signal:
             key_factors.append("⚠️ CONTRARIAN SIGNAL: Extreme sentiment may precede reversal")
+
+        # Add Viral K-Factor to key factors
+        key_factors.append(f"📈 Viral K-Factor: {viral_metrics.k_factor:.2f} ({viral_metrics.viral_signal})")
+        if viral_metrics.is_viral:
+            key_factors.append("🔥 BIO-CHECK PASSED: Viral growth with positive acceleration")
 
         # Reasoning
         reasoning = self._build_reasoning(avg_sentiment, fomo_level, fud_level, contrarian_signal, narratives)
@@ -456,7 +552,13 @@ class SocialAgent(BaseAgent):
                 "narratives": narratives,
                 "whale_activity": whale_activity,
                 "top_posts": [{"title": p.title, "score": p.score, "sentiment": p.sentiment}
-                             for p in posts[:5]]
+                             for p in posts[:5]],
+                # Viral K-Factor metrics (Bio-Check)
+                "viral_k_factor": viral_metrics.k_factor,
+                "viral_acceleration": viral_metrics.acceleration,
+                "viral_signal": viral_metrics.viral_signal,
+                "viral_is_active": viral_metrics.is_viral,
+                "bio_check_passed": viral_metrics.is_viral  # Entry condition: K > 1.2 AND acceleration > 0
             },
             warnings=warnings
         )

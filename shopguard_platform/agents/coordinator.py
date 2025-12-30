@@ -23,6 +23,29 @@ from .fundamental_agent import FundamentalAgent
 
 
 @dataclass
+class ConvergenceSignal:
+    """Three-pillar convergence signal for entry/exit"""
+    # Entry Conditions (ALL must be True for entry)
+    bio_check_passed: bool  # Viral K > 1.2 AND acceleration > 0
+    physics_check_passed: bool  # Entropy < 0.6 AND Hurst > 0.65
+    micro_check_passed: bool  # Whale trap detected (CVD divergence)
+
+    # Exit Conditions (ANY triggers exit)
+    entropy_circuit_breaker: bool  # Entropy > 0.9
+    viral_death: bool  # Viral K < 0.8
+    distribution_exit: bool  # CVD distribution detected
+
+    # Overall Signal
+    entry_signal: bool  # All 3 entry conditions met
+    exit_signal: bool  # Any exit condition triggered
+    signal_strength: float  # 0-1 combined strength
+
+    # Details
+    entry_reasons: List[str]
+    exit_reasons: List[str]
+
+
+@dataclass
 class UnifiedAnalysis:
     """Complete analysis from all agents"""
     asset: str
@@ -57,8 +80,11 @@ class UnifiedAnalysis:
     # Warnings
     warnings: List[str]
 
+    # Convergence Signal (New Strategy) - Optional field with default
+    convergence: ConvergenceSignal = None
+
     def to_dict(self) -> Dict:
-        return {
+        result = {
             "asset": self.asset,
             "timestamp": self.timestamp.isoformat(),
             "action": self.action.value,
@@ -79,6 +105,24 @@ class UnifiedAnalysis:
             "what_to_watch": self.what_to_watch,
             "warnings": self.warnings
         }
+
+        # Add convergence signal if available
+        if self.convergence:
+            result["convergence"] = {
+                "bio_check_passed": self.convergence.bio_check_passed,
+                "physics_check_passed": self.convergence.physics_check_passed,
+                "micro_check_passed": self.convergence.micro_check_passed,
+                "entry_signal": self.convergence.entry_signal,
+                "exit_signal": self.convergence.exit_signal,
+                "signal_strength": self.convergence.signal_strength,
+                "entry_reasons": self.convergence.entry_reasons,
+                "exit_reasons": self.convergence.exit_reasons,
+                "entropy_circuit_breaker": self.convergence.entropy_circuit_breaker,
+                "viral_death": self.convergence.viral_death,
+                "distribution_exit": self.convergence.distribution_exit
+            }
+
+        return result
 
 
 class AgentCoordinator:
@@ -102,6 +146,118 @@ class AgentCoordinator:
             'social': 0.15,       # 15% - Social sentiment
             'risk': 0.15          # 15% - Risk assessment
         }
+
+    def _calculate_convergence(self, opinions: Dict[str, AgentOpinion]) -> ConvergenceSignal:
+        """
+        Calculate the three-pillar convergence signal
+
+        Entry requires ALL THREE conditions:
+        1. Bio-Check: Viral K > 1.2 AND acceleration > 0
+        2. Physics-Check: Entropy < 0.6 AND Hurst > 0.65
+        3. Micro-Check: Whale trap detected (CVD divergence)
+
+        Exit triggers if ANY of these occur:
+        1. Entropy > 0.9 (circuit breaker)
+        2. Viral K < 0.8 (viral death)
+        3. Distribution detected (smart money selling)
+        """
+        entry_reasons = []
+        exit_reasons = []
+
+        # === BIO-CHECK (Social Agent - Viral K-Factor) ===
+        social = opinions.get('social')
+        bio_check_passed = False
+        viral_k = 1.0
+        viral_acceleration = 0.0
+        viral_death = False
+
+        if social and social.indicators:
+            viral_k = social.indicators.get('viral_k_factor', 1.0)
+            viral_acceleration = social.indicators.get('viral_acceleration', 0.0)
+            bio_check_passed = social.indicators.get('bio_check_passed', False)
+
+            if bio_check_passed:
+                entry_reasons.append(f"✅ Bio-Check PASSED: Viral K={viral_k:.2f}, Acceleration={viral_acceleration:.2f}")
+            else:
+                entry_reasons.append(f"❌ Bio-Check FAILED: Viral K={viral_k:.2f} (need >1.2)")
+
+            # Exit condition: Viral death
+            viral_death = viral_k < 0.8
+            if viral_death:
+                exit_reasons.append(f"🔴 VIRAL DEATH: K-Factor dropped to {viral_k:.2f}")
+
+        # === PHYSICS-CHECK (Technical Agent - Entropy + Hurst) ===
+        technical = opinions.get('technical')
+        physics_check_passed = False
+        entropy = 0.5
+        hurst = 0.5
+        entropy_circuit_breaker = False
+
+        if technical and technical.indicators:
+            entropy = technical.indicators.get('shannon_entropy', 0.5)
+            hurst = technical.indicators.get('hurst_exponent', 0.5)
+            physics_check_passed = technical.indicators.get('physics_check_passed', False)
+
+            if physics_check_passed:
+                entry_reasons.append(f"✅ Physics-Check PASSED: Entropy={entropy:.2f}, Hurst={hurst:.2f}")
+            else:
+                entry_reasons.append(f"❌ Physics-Check FAILED: Entropy={entropy:.2f} (need <0.6), Hurst={hurst:.2f} (need >0.65)")
+
+            # Exit condition: Entropy circuit breaker
+            entropy_circuit_breaker = entropy > 0.9
+            if entropy_circuit_breaker:
+                exit_reasons.append(f"🔴 CIRCUIT BREAKER: Entropy spiked to {entropy:.2f} - market is chaotic")
+
+        # === MICRO-CHECK (Risk Agent - CVD Divergence) ===
+        risk = opinions.get('risk')
+        micro_check_passed = False
+        distribution_exit = False
+
+        if risk and risk.indicators:
+            micro_check_passed = risk.indicators.get('micro_check_passed', False)
+            whale_trap = risk.indicators.get('whale_trap_detected', False)
+            distribution_exit = risk.indicators.get('distribution_detected', False)
+
+            if micro_check_passed:
+                entry_reasons.append("✅ Micro-Check PASSED: Whale absorption detected")
+            else:
+                cvd_trend = risk.indicators.get('cvd_trend', 'NEUTRAL')
+                entry_reasons.append(f"❌ Micro-Check FAILED: No whale trap (CVD: {cvd_trend})")
+
+            # Exit condition: Distribution detected
+            if distribution_exit:
+                exit_reasons.append("🔴 DISTRIBUTION: Smart money selling into strength")
+
+        # === CALCULATE FINAL SIGNALS ===
+
+        # Entry requires ALL THREE checks to pass
+        entry_signal = bio_check_passed and physics_check_passed and micro_check_passed
+
+        # Exit triggers if ANY condition is met
+        exit_signal = entropy_circuit_breaker or viral_death or distribution_exit
+
+        # Calculate signal strength (0-1)
+        checks_passed = sum([bio_check_passed, physics_check_passed, micro_check_passed])
+        signal_strength = checks_passed / 3.0
+
+        # Boost signal strength if all checks pass
+        if entry_signal:
+            # Add bonus for convergence
+            signal_strength = min(1.0, signal_strength + 0.2)
+
+        return ConvergenceSignal(
+            bio_check_passed=bio_check_passed,
+            physics_check_passed=physics_check_passed,
+            micro_check_passed=micro_check_passed,
+            entropy_circuit_breaker=entropy_circuit_breaker,
+            viral_death=viral_death,
+            distribution_exit=distribution_exit,
+            entry_signal=entry_signal,
+            exit_signal=exit_signal,
+            signal_strength=round(signal_strength, 2),
+            entry_reasons=entry_reasons,
+            exit_reasons=exit_reasons
+        )
 
     def fetch_price_data(self, asset: str) -> Dict[str, Any]:
         """Fetch current price and history for an asset"""
@@ -196,6 +352,24 @@ class AgentCoordinator:
         # Calculate weighted consensus
         final_action, final_confidence, consensus_level = self._calculate_consensus(opinions)
 
+        # Calculate convergence signal (Three-Pillar Strategy)
+        print(f"  🎯 Convergence analysis...")
+        convergence = self._calculate_convergence(opinions)
+
+        # Modify action based on convergence signal
+        if convergence.entry_signal and final_action in [Action.HOLD, Action.BUY]:
+            # Strong convergence entry signal
+            final_action = Action.STRONG_BUY
+            final_confidence = Confidence.VERY_HIGH
+            print(f"  🔥 CONVERGENCE ENTRY: All 3 checks passed!")
+
+        if convergence.exit_signal:
+            # Exit signal triggered - override to SELL
+            if final_action in [Action.BUY, Action.STRONG_BUY, Action.HOLD]:
+                final_action = Action.SELL
+                final_confidence = Confidence.HIGH
+                print(f"  ⚠️ CONVERGENCE EXIT: Circuit breaker triggered!")
+
         # Generate unified summary
         summary = self._generate_summary(asset, opinions, final_action, consensus_level)
 
@@ -217,6 +391,17 @@ class AgentCoordinator:
         # Collect all warnings
         warnings = self._collect_warnings(opinions, consensus_level)
 
+        # Add convergence reasons to key_reasons
+        if convergence.entry_signal:
+            key_reasons.insert(0, "🔥 CONVERGENCE ENTRY SIGNAL: All 3 checks passed!")
+            key_reasons.extend(convergence.entry_reasons)
+        elif convergence.exit_signal:
+            key_reasons.insert(0, "⚠️ CONVERGENCE EXIT SIGNAL: Circuit breaker triggered!")
+            key_reasons.extend(convergence.exit_reasons)
+        else:
+            # Show which checks are passing/failing
+            key_reasons.extend(convergence.entry_reasons[:3])
+
         return UnifiedAnalysis(
             asset=asset,
             timestamp=datetime.now(),
@@ -236,7 +421,8 @@ class AgentCoordinator:
             agent_opinions=opinions,
             learning_points=learning_points,
             what_to_watch=what_to_watch,
-            warnings=warnings
+            warnings=warnings,
+            convergence=convergence  # Optional field at the end
         )
 
     def _calculate_consensus(self, opinions: Dict[str, AgentOpinion]) -> tuple:
