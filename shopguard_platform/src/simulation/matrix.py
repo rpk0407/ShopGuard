@@ -336,13 +336,13 @@ class Matrix:
         # Normal GBM movement
         state.price = self._gbm_step(state.price)
 
-        # Entropy wanders
-        state.entropy += self.rng.gauss(0, 0.02)
-        state.entropy = max(0.3, min(0.7, state.entropy))
+        # Entropy wanders in moderate range (allows some signals)
+        state.entropy += self.rng.gauss(0, 0.03)
+        state.entropy = max(0.25, min(0.55, state.entropy))  # Lower range for more signals
 
         # Hurst wanders
-        state.hurst += self.rng.gauss(0, 0.01)
-        state.hurst = max(0.4, min(0.6, state.hurst))
+        state.hurst += self.rng.gauss(0, 0.02)
+        state.hurst = max(0.5, min(0.7, state.hurst))  # Slightly higher for trend detection
 
         # Viral K normal
         state.viral_k += self.rng.gauss(0, 0.05)
@@ -406,9 +406,13 @@ class Matrix:
         if len(state.price_history) > 100:
             state.price_history = state.price_history[-100:]
 
-        # Recalculate derived metrics
-        state.entropy = self._calculate_entropy(state.price_history)
-        state.hurst = self._calculate_hurst(state.price_history)
+        # Blend phase-based entropy with calculated entropy (phase has priority)
+        calculated_entropy = self._calculate_entropy(state.price_history)
+        calculated_hurst = self._calculate_hurst(state.price_history)
+
+        # Phase-based values take priority (70% phase, 30% calculated)
+        state.entropy = state.entropy * 0.7 + calculated_entropy * 0.3
+        state.hurst = state.hurst * 0.7 + calculated_hurst * 0.3
 
         # Build output dict
         return self._build_tick_data(asset, state)
@@ -416,10 +420,11 @@ class Matrix:
     def _build_tick_data(self, asset: str, state: MarketState) -> Dict[str, Any]:
         """Build the market data dict for consumption by coordinator and TitanBrain"""
 
-        # Scale entropy to TitanBrain's expected range (2.0-3.5)
-        # Internal state.entropy is 0-1, TitanBrain expects ~2.0-3.5
-        # Low entropy (ordered) = 2.0, High entropy (chaos) = 3.5
-        scaled_entropy = 2.0 + (state.entropy * 1.5)
+        # Scale entropy to TitanBrain's expected range (1.5-3.0)
+        # Internal state.entropy is 0-1, TitanBrain threshold is 2.5
+        # Low entropy (ordered) = 1.5-2.2 (PASSES threshold, good for entry)
+        # High entropy (chaos) = 2.7-3.0 (FAILS threshold, should exit)
+        scaled_entropy = 1.5 + (state.entropy * 1.5)
 
         # Determine entropy signal
         if state.entropy < 0.4:
