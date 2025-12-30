@@ -1871,29 +1871,41 @@ MAIN_TEMPLATE = '''
                 '$' + (data.price || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
             document.getElementById('matrix-phase').textContent = (data.phase || '--').toUpperCase();
 
-            // Update signal with color
+            // Update signal with color and confidence
             const signalEl = document.getElementById('matrix-signal');
             const signal = data.signal || '--';
-            signalEl.textContent = signal;
+            const confidence = data.confidence || 0;
+            signalEl.textContent = signal + ' (' + (confidence * 100).toFixed(0) + '%)';
             signalEl.className = 'stat-value';
             if (signal === 'STRONG_BUY') signalEl.style.color = 'var(--success)';
             else if (signal === 'BUY') signalEl.style.color = '#22c55e';
             else if (signal === 'EXIT') signalEl.style.color = 'var(--danger)';
             else signalEl.style.color = 'var(--warning)';
 
-            // Update three pillars
+            // Update three pillars - USE TITAN BRAIN PILLAR STATES
             const entropy = data.entropy || 0;
             const hurst = data.hurst || 0;
             const viral_k = data.viral_k || 0;
             const cvd = data.cvd || 0;
+            const pillars = data.pillars || {};
 
-            updatePillarBadge('matrix-entropy', entropy, entropy < 2.5, entropy.toFixed(2));
-            updatePillarBadge('matrix-hurst', hurst, hurst > 0.6, hurst.toFixed(2));
-            updatePillarBadge('matrix-viral', viral_k, viral_k > 1.2, viral_k.toFixed(2));
+            // Use TitanBrain pillar states if available, otherwise calculate
+            updatePillarBadge('matrix-entropy', entropy, pillars.bio !== undefined ? pillars.bio : entropy < 2.5, entropy.toFixed(2));
+            updatePillarBadge('matrix-hurst', hurst, pillars.physics !== undefined ? pillars.physics : hurst > 0.6, hurst.toFixed(2));
+            updatePillarBadge('matrix-viral', viral_k, pillars.micro !== undefined ? pillars.micro : viral_k > 1.2, viral_k.toFixed(2));
 
             const cvdEl = document.getElementById('matrix-cvd');
             cvdEl.textContent = cvd >= 0 ? '+' + cvd.toFixed(0) : cvd.toFixed(0);
-            cvdEl.className = 'badge ' + (cvd > 0 ? 'badge-success' : 'badge-danger');
+            cvdEl.className = 'badge ' + (pillars.cvd !== undefined ? (pillars.cvd ? 'badge-success' : 'badge-danger') : (cvd > 0 ? 'badge-success' : 'badge-danger'));
+
+            // Show brain version if using TitanBrain
+            const brainVersion = data.brain_version || 0;
+            const brainSource = data.brain_source || 'fallback';
+            if (brainVersion > 0) {
+                document.getElementById('matrix-status').innerHTML =
+                    '<span class="badge badge-success">Connected</span>' +
+                    '<span class="badge badge-purple" style="margin-left: 8px;">Brain v' + brainVersion + ' (' + brainSource + ')</span>';
+            }
 
             // Add to history
             if (signal !== 'HOLD') {
@@ -1901,7 +1913,8 @@ MAIN_TEMPLATE = '''
                     time: new Date().toLocaleTimeString(),
                     signal: signal,
                     price: data.price,
-                    phase: data.phase
+                    phase: data.phase,
+                    confidence: confidence
                 };
                 matrixHistory.unshift(historyEntry);
                 if (matrixHistory.length > 20) matrixHistory.pop();
@@ -1922,11 +1935,11 @@ MAIN_TEMPLATE = '''
                 return;
             }
             container.innerHTML = matrixHistory.map(h =>
-                '<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">' +
-                    '<span style="color: var(--text-dim);">' + h.time + '</span>' +
-                    '<span class="' + (h.signal.includes('BUY') ? 'signal-buy' : 'signal-sell') + '">' + h.signal + '</span>' +
-                    '<span>$' + h.price.toFixed(2) + '</span>' +
-                    '<span class="badge">' + h.phase + '</span>' +
+                '<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border);">' +
+                    '<span style="color: var(--text-dim); font-size: 0.8rem;">' + h.time + '</span>' +
+                    '<span class="' + (h.signal.includes('BUY') ? 'signal-buy' : 'signal-sell') + '" style="font-weight: 600;">' + h.signal + '</span>' +
+                    '<span style="font-size: 0.85rem;">' + ((h.confidence || 0) * 100).toFixed(0) + '%</span>' +
+                    '<span style="font-size: 0.85rem;">$' + h.price.toFixed(2) + '</span>' +
                 '</div>'
             ).join('');
         }
@@ -2395,43 +2408,75 @@ def generate_matrix_stream():
         yield f"data: {json.dumps({'error': 'Matrix not available'})}\n\n"
         return
 
-    price_history = []
-
     while True:
         try:
             tick = matrix.tick("BTC/USDT")
-            price_history.append(tick['price'])
-            if len(price_history) > 100:
-                price_history.pop(0)
 
-            # Determine signal based on convergence
+            # Extract metrics
             entropy = tick.get('entropy', 3.0)
             hurst = tick.get('hurst', 0.5)
             viral_k = tick.get('viral_k', 1.0)
             cvd = tick.get('cvd', 0)
             phase = tick.get('phase', 'stable')
 
-            # Signal logic
-            signal = "HOLD"
-            if phase in ['accumulation', 'recovery']:
-                if entropy < 2.5 and hurst > 0.6 and viral_k > 1.2:
-                    signal = "STRONG_BUY"
-                elif entropy < 3.0 and hurst > 0.55:
-                    signal = "BUY"
-            elif phase == 'crash':
-                signal = "EXIT"
-            elif phase == 'euphoria':
-                if viral_k < 0.8:
+            # USE TITAN BRAIN FOR SIGNAL GENERATION (if available)
+            if DARWIN_AVAILABLE and titan_brain:
+                # Process tick through TitanBrain with evolved parameters
+                brain_tick = {
+                    'asset': 'BTC/USDT',
+                    'price': tick['price'],
+                    'entropy': entropy,
+                    'hurst': hurst,
+                    'viral_k': viral_k,
+                    'cvd': cvd,
+                    'phase': phase
+                }
+                trading_signal = titan_brain.process_tick(brain_tick)
+                signal = trading_signal.signal_type.value
+                confidence = trading_signal.confidence
+                conviction = trading_signal.conviction
+
+                # Include pillar states
+                pillars = {
+                    'bio': trading_signal.bio_check,
+                    'physics': trading_signal.physics_check,
+                    'micro': trading_signal.micro_check,
+                    'cvd': trading_signal.cvd_check
+                }
+            else:
+                # Fallback to hardcoded logic if TitanBrain not available
+                signal = "HOLD"
+                confidence = 0.5
+                conviction = 0.0
+                pillars = {'bio': False, 'physics': False, 'micro': False, 'cvd': False}
+
+                if phase in ['accumulation', 'recovery']:
+                    if entropy < 2.5 and hurst > 0.6 and viral_k > 1.2:
+                        signal = "STRONG_BUY"
+                        confidence = 0.9
+                    elif entropy < 3.0 and hurst > 0.55:
+                        signal = "BUY"
+                        confidence = 0.7
+                elif phase == 'crash':
                     signal = "EXIT"
+                    confidence = 0.85
+                elif phase == 'euphoria' and viral_k < 0.8:
+                    signal = "EXIT"
+                    confidence = 0.6
 
             data = {
                 'price': tick['price'],
                 'phase': phase,
                 'signal': signal,
+                'confidence': confidence,
+                'conviction': conviction if DARWIN_AVAILABLE else 0,
                 'entropy': entropy,
                 'hurst': hurst,
                 'viral_k': viral_k,
                 'cvd': cvd,
+                'pillars': pillars,
+                'brain_version': titan_brain.config.version if DARWIN_AVAILABLE and titan_brain else 0,
+                'brain_source': titan_brain.config.source if DARWIN_AVAILABLE and titan_brain else 'fallback',
                 'timestamp': tick.get('timestamp', time.time())
             }
 
