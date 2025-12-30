@@ -32,6 +32,35 @@ except ImportError:
     MATRIX_AVAILABLE = False
     print("  ⚠ Matrix not available - using live data only")
 
+# Initialize Darwin Evolution Engine
+try:
+    from .src.evolution.darwin import Darwin, EvolutionConfig, Genome
+    from .src.core.titan_brain import TitanBrain, EvolvingBrain, BrainConfig
+    from .src.core.fast_math import FastMath
+
+    darwin_config = EvolutionConfig(
+        population_size=50,
+        evaluation_ticks=300,
+        generation_interval=600,  # 10 minutes
+        hot_swap_interval=3600    # 1 hour
+    )
+    darwin = Darwin(config=darwin_config, matrix=matrix)
+    titan_brain = EvolvingBrain()
+    titan_brain.attach_darwin(darwin)
+    fast_math = FastMath()
+    fast_math.warmup()  # Pre-compile JIT functions
+
+    DARWIN_AVAILABLE = True
+    print("  ✓ Darwin Evolution Engine initialized (50 mutants)")
+    print("  ✓ TitanBrain with dynamic config ready")
+    print("  ✓ FastMath JIT acceleration enabled")
+except ImportError as e:
+    darwin = None
+    titan_brain = None
+    fast_math = None
+    DARWIN_AVAILABLE = False
+    print(f"  ⚠ Darwin not available: {e}")
+
 # SSE clients for Matrix streaming
 matrix_clients = []
 
@@ -625,6 +654,9 @@ MAIN_TEMPLATE = '''
                 <button class="nav-btn" onclick="nav('matrix')">
                     <span class="icon">🔮</span> Matrix Sim
                 </button>
+                <button class="nav-btn" onclick="nav('evolution')">
+                    <span class="icon">🧬</span> Darwin Lab
+                </button>
             </div>
 
             <div class="nav-section">
@@ -1182,6 +1214,146 @@ MAIN_TEMPLATE = '''
                         The Matrix generates synthetic market data using Geometric Brownian Motion.
                         Every 60 seconds, a "Perfect Storm" crash event occurs to test the convergence detection.
                     </p>
+                </div>
+            </div>
+
+            <!-- DARWIN EVOLUTION LAB -->
+            <div id="page-evolution" class="page">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">🧬 Darwin Evolution Lab</h1>
+                        <p class="page-subtitle">Genetic Algorithm Optimization - The Strong Survive</p>
+                    </div>
+                    <div id="darwin-status" class="quick-actions">
+                        <span class="badge badge-warning">Inactive</span>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Generation</div>
+                        <div class="stat-value" id="darwin-generation">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Population</div>
+                        <div class="stat-value" id="darwin-population">50</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Best Fitness</div>
+                        <div class="stat-value" id="darwin-fitness">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Alpha Updates</div>
+                        <div class="stat-value" id="darwin-updates">0</div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <h3 class="card-title" style="margin-bottom: 16px;">🏆 Alpha Genome (Current Best)</h3>
+                        <div id="alpha-genome" style="display: grid; gap: 12px;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>K-Factor Threshold</span>
+                                <span id="alpha-k" class="badge badge-purple">--</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Entropy Threshold</span>
+                                <span id="alpha-entropy" class="badge badge-purple">--</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Hurst Threshold</span>
+                                <span id="alpha-hurst" class="badge badge-purple">--</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>CVD Sensitivity</span>
+                                <span id="alpha-cvd" class="badge badge-purple">--</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Position Size</span>
+                                <span id="alpha-position" class="badge badge-purple">--</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Stop Loss ATR</span>
+                                <span id="alpha-stoploss" class="badge badge-purple">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3 class="card-title" style="margin-bottom: 16px;">📊 Population Distribution</h3>
+                        <div id="population-dist">
+                            <div style="margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                    <span>Aggressive</span>
+                                    <span id="pop-aggressive">20%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="bar-aggressive" style="width: 20%; background: var(--danger);"></div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                    <span>Conservative</span>
+                                    <span id="pop-conservative">20%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="bar-conservative" style="width: 20%; background: var(--success);"></div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                    <span>Balanced</span>
+                                    <span id="pop-balanced">30%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="bar-balanced" style="width: 30%; background: var(--accent);"></div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                                    <span>Chaotic</span>
+                                    <span id="pop-chaotic">30%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="bar-chaotic" style="width: 30%; background: var(--warning);"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title" style="margin-bottom: 16px;">Evolution Control</h3>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <button class="btn btn-success" onclick="startEvolution()">🧬 Start Evolution</button>
+                        <button class="btn btn-danger" onclick="stopEvolution()">⏹ Stop</button>
+                        <button class="btn btn-primary" onclick="runGeneration()">⚡ Force Generation</button>
+                        <button class="btn btn-outline" onclick="loadEvolutionStats()">↻ Refresh Stats</button>
+                        <button class="btn btn-outline" onclick="hotSwapAlpha()">🔥 Hot-Swap Alpha</button>
+                    </div>
+                    <p style="margin-top: 16px; color: var(--text-dim); font-size: 0.85rem;">
+                        The Darwinian Engine spawns 50 mutant agents with randomized trading parameters.
+                        Every generation, the bottom 50% are culled and the top 50% breed to create the next generation.
+                        The Alpha (best performer) is automatically hot-swapped into the live TitanBrain.
+                    </p>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title" style="margin-bottom: 16px;">🧠 TitanBrain Status</h3>
+                    <div class="grid-3">
+                        <div>
+                            <div class="stat-label">Config Version</div>
+                            <div id="brain-version" style="font-size: 1.5rem; font-weight: 700;">v1</div>
+                        </div>
+                        <div>
+                            <div class="stat-label">Config Source</div>
+                            <div id="brain-source" style="font-size: 1.5rem; font-weight: 700;">default</div>
+                        </div>
+                        <div>
+                            <div class="stat-label">Signals Generated</div>
+                            <div id="brain-signals" style="font-size: 1.5rem; font-weight: 700;">0</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -1765,6 +1937,99 @@ MAIN_TEMPLATE = '''
         }
 
         // =========================================
+        // DARWIN EVOLUTION
+        // =========================================
+        let evolutionRefreshInterval = null;
+
+        async function startEvolution() {
+            const data = await api('darwin/start', 'POST');
+            if (data.success) {
+                document.getElementById('darwin-status').innerHTML =
+                    '<span class="badge badge-success">Evolving</span>';
+                // Start auto-refresh
+                if (!evolutionRefreshInterval) {
+                    evolutionRefreshInterval = setInterval(loadEvolutionStats, 10000);
+                }
+            } else {
+                alert('Failed to start evolution: ' + (data.error || 'Unknown error'));
+            }
+        }
+
+        async function stopEvolution() {
+            const data = await api('darwin/stop', 'POST');
+            if (data.success) {
+                document.getElementById('darwin-status').innerHTML =
+                    '<span class="badge badge-warning">Stopped</span>';
+                if (evolutionRefreshInterval) {
+                    clearInterval(evolutionRefreshInterval);
+                    evolutionRefreshInterval = null;
+                }
+            }
+        }
+
+        async function runGeneration() {
+            document.getElementById('darwin-status').innerHTML =
+                '<span class="badge badge-purple">Running...</span>';
+            const data = await api('darwin/generation', 'POST');
+            if (data.success) {
+                loadEvolutionStats();
+                document.getElementById('darwin-status').innerHTML =
+                    '<span class="badge badge-success">Complete</span>';
+            } else {
+                alert('Failed: ' + (data.error || 'Unknown error'));
+                document.getElementById('darwin-status').innerHTML =
+                    '<span class="badge badge-danger">Error</span>';
+            }
+        }
+
+        async function hotSwapAlpha() {
+            const data = await api('darwin/hotswap', 'POST');
+            if (data.success) {
+                alert('🧬 Alpha genome hot-swapped into TitanBrain!');
+                loadEvolutionStats();
+            } else {
+                alert('No alpha genome available yet');
+            }
+        }
+
+        async function loadEvolutionStats() {
+            const data = await api('darwin/stats');
+            if (data.success) {
+                const stats = data.stats;
+
+                document.getElementById('darwin-generation').textContent = stats.generations || 0;
+                document.getElementById('darwin-population').textContent = stats.population_size || 50;
+                document.getElementById('darwin-fitness').textContent =
+                    stats.best_fitness_ever ? stats.best_fitness_ever.toFixed(2) : '--';
+                document.getElementById('darwin-updates').textContent = stats.alpha_updates || 0;
+
+                // Update alpha genome if available
+                if (stats.alpha_genome) {
+                    const g = stats.alpha_genome;
+                    document.getElementById('alpha-k').textContent = g.k_threshold?.toFixed(3) || '--';
+                    document.getElementById('alpha-entropy').textContent = g.entropy_threshold?.toFixed(3) || '--';
+                    document.getElementById('alpha-hurst').textContent = g.hurst_threshold?.toFixed(3) || '--';
+                    document.getElementById('alpha-cvd').textContent = g.cvd_sensitivity?.toFixed(3) || '--';
+                    document.getElementById('alpha-position').textContent = (g.position_size_base * 100)?.toFixed(1) + '%' || '--';
+                    document.getElementById('alpha-stoploss').textContent = g.stop_loss_atr_mult?.toFixed(2) + 'x' || '--';
+                }
+
+                // Update brain stats
+                if (data.brain) {
+                    document.getElementById('brain-version').textContent = 'v' + (data.brain.config_version || 1);
+                    document.getElementById('brain-source').textContent = data.brain.config_source || 'default';
+                    document.getElementById('brain-signals').textContent = data.brain.signals_generated || 0;
+                }
+
+                // Update status
+                if (stats.is_running) {
+                    document.getElementById('darwin-status').innerHTML =
+                        '<span class="badge badge-success">Evolving</span>';
+                }
+            }
+        }
+
+        // =========================================
         // INIT
         // =========================================
         window.addEventListener('DOMContentLoaded', function() {
@@ -2202,6 +2467,148 @@ def api_matrix_status():
 
 
 # =============================================================================
+# DARWIN EVOLUTION API
+# =============================================================================
+
+@app.route('/api/darwin/stats')
+def api_darwin_stats():
+    """Get Darwin evolution statistics"""
+    if not DARWIN_AVAILABLE:
+        return jsonify({'success': False, 'error': 'Darwin not available'})
+
+    try:
+        stats = darwin.get_stats()
+        brain_stats = titan_brain.get_stats() if titan_brain else {}
+
+        return jsonify({
+            'success': True,
+            'stats': stats,
+            'brain': brain_stats
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/darwin/start', methods=['POST'])
+def api_darwin_start():
+    """Start Darwin evolution"""
+    if not DARWIN_AVAILABLE or not MATRIX_AVAILABLE:
+        return jsonify({'success': False, 'error': 'Darwin or Matrix not available'})
+
+    try:
+        darwin.start_evolution(matrix)
+        return jsonify({'success': True, 'message': 'Evolution started'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/darwin/stop', methods=['POST'])
+def api_darwin_stop():
+    """Stop Darwin evolution"""
+    if not DARWIN_AVAILABLE:
+        return jsonify({'success': False, 'error': 'Darwin not available'})
+
+    try:
+        darwin.stop_evolution()
+        return jsonify({'success': True, 'message': 'Evolution stopped'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/darwin/generation', methods=['POST'])
+def api_darwin_generation():
+    """Run a single generation manually"""
+    if not DARWIN_AVAILABLE or not MATRIX_AVAILABLE:
+        return jsonify({'success': False, 'error': 'Darwin or Matrix not available'})
+
+    try:
+        # Generate ticks from Matrix
+        ticks = []
+        for _ in range(darwin.config.evaluation_ticks):
+            tick = matrix.tick("BTC/USDT")
+            ticks.append(tick)
+
+        # Run generation
+        alpha = darwin.run_generation(ticks)
+
+        return jsonify({
+            'success': True,
+            'generation': darwin.generation,
+            'alpha': alpha.to_dict() if alpha else None,
+            'stats': darwin.get_stats()
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/darwin/hotswap', methods=['POST'])
+def api_darwin_hotswap():
+    """Hot-swap alpha genome into TitanBrain"""
+    if not DARWIN_AVAILABLE:
+        return jsonify({'success': False, 'error': 'Darwin not available'})
+
+    try:
+        alpha = darwin.get_alpha()
+        if not alpha:
+            return jsonify({'success': False, 'error': 'No alpha genome available'})
+
+        titan_brain.update_from_genome(alpha)
+
+        return jsonify({
+            'success': True,
+            'message': 'Alpha genome hot-swapped',
+            'genome': alpha.to_dict(),
+            'brain_version': titan_brain.config.version
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/darwin/alpha')
+def api_darwin_alpha():
+    """Get current alpha genome"""
+    if not DARWIN_AVAILABLE:
+        return jsonify({'success': False, 'error': 'Darwin not available'})
+
+    try:
+        alpha = darwin.get_alpha()
+        return jsonify({
+            'success': True,
+            'alpha': alpha.to_dict() if alpha else None
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/brain/config')
+def api_brain_config():
+    """Get TitanBrain configuration"""
+    if not DARWIN_AVAILABLE or not titan_brain:
+        return jsonify({'success': False, 'error': 'TitanBrain not available'})
+
+    try:
+        config = titan_brain.get_config()
+        return jsonify({
+            'success': True,
+            'config': {
+                'version': config.version,
+                'source': config.source,
+                'entropy_threshold': config.entropy_threshold_high,
+                'hurst_threshold': config.hurst_threshold_high,
+                'k_threshold': config.k_threshold_high,
+                'position_size_base': config.position_size_base,
+                'stop_loss_pct': config.stop_loss_pct,
+                'take_profit_pct': config.take_profit_pct
+            },
+            'stats': titan_brain.get_stats()
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+# =============================================================================
 # RUN APP
 # =============================================================================
 
@@ -2219,6 +2626,10 @@ def run_app(host='0.0.0.0', port=5000, debug=False):
     print("    ✓ Paper trading with $100 capital")
     if MATRIX_AVAILABLE:
         print("    ✓ 🔮 Matrix Simulation Engine (Perfect Storm every 60s)")
+    if DARWIN_AVAILABLE:
+        print("    ✓ 🧬 Darwin Evolution Engine (50 mutants, auto-optimization)")
+        print("    ✓ 🧠 TitanBrain with dynamic config hot-swap")
+        print("    ✓ ⚡ FastMath Numba JIT acceleration (100x speedup)")
     print("\n" + "=" * 60 + "\n")
 
     app.run(host=host, port=port, debug=debug)
