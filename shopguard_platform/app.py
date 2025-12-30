@@ -1334,18 +1334,66 @@ MAIN_TEMPLATE = '''
         // =========================================
         // DEEP ANALYSIS
         // =========================================
+        function getVoteClass(action) {
+            if (!action) return 'signal-hold';
+            if (action.includes('BUY')) return 'signal-buy';
+            if (action.includes('SELL')) return 'signal-sell';
+            return 'signal-hold';
+        }
+
         async function runAnalysis() {
             const asset = document.getElementById('analysis-asset').value;
-            document.getElementById('analysis-result').innerHTML = '<div class="loading"><div class="spinner"></div>Running deep analysis on ' + asset + '...</div>';
+            document.getElementById('analysis-result').innerHTML = '<div class="loading"><div class="spinner"></div>Running deep analysis on ' + asset + '... (5 AI agents analyzing)</div>';
 
             const data = await api('deep-analysis/' + asset);
             if (!data.success) {
-                document.getElementById('analysis-result').innerHTML = '<div class="empty-state"><p>Analysis failed. Please try again.</p></div>';
+                document.getElementById('analysis-result').innerHTML = '<div class="empty-state"><p>Analysis failed: ' + (data.error || 'Unknown error') + '</p></div>';
                 return;
             }
 
             const a = data.analysis;
-            const recCls = a.recommendation === 'BUY' ? 'signal-buy' : a.recommendation === 'SELL' ? 'signal-sell' : 'signal-hold';
+            const recCls = getVoteClass(a.recommendation);
+            const consensusPct = ((a.consensus || 0) * 100).toFixed(0);
+
+            // Build agent votes HTML
+            let votesHtml = '';
+            const agents = [
+                {key: 'technical', name: '📊 Technical', desc: 'Price patterns & indicators'},
+                {key: 'news', name: '📰 News', desc: 'Latest news sentiment'},
+                {key: 'social', name: '💬 Social', desc: 'Reddit & community mood'},
+                {key: 'risk', name: '⚠️ Risk', desc: 'Volatility & position sizing'},
+                {key: 'fundamental', name: '📈 Fundamental', desc: 'Market cap & volume'}
+            ];
+
+            agents.forEach(agent => {
+                const vote = a.votes?.[agent.key];
+                const action = vote?.action || 'N/A';
+                const conf = vote?.confidence || '';
+                votesHtml += `
+                    <div class="agent-vote">
+                        <div class="agent-name">${agent.name}</div>
+                        <div class="agent-desc" style="font-size:0.75rem;color:var(--text-dim);margin-bottom:4px;">${agent.desc}</div>
+                        <div class="agent-decision ${getVoteClass(action)}">${action}</div>
+                        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:2px;">${conf}</div>
+                    </div>
+                `;
+            });
+
+            // Build reasoning HTML
+            let reasoningHtml = '';
+            if (a.reasoning?.length) {
+                reasoningHtml = '<div style="margin-top:20px;"><h4>Key Reasons</h4><ul style="margin:8px 0;padding-left:20px;">';
+                a.reasoning.forEach(r => { reasoningHtml += '<li style="margin:4px 0;">' + r + '</li>'; });
+                reasoningHtml += '</ul></div>';
+            }
+
+            // Build learning HTML
+            let learningHtml = '';
+            if (a.learning?.length) {
+                learningHtml = '<div style="margin-top:20px;background:var(--card-bg);padding:16px;border-radius:8px;border-left:3px solid var(--primary);"><h4 style="margin-bottom:8px;">💡 What You Can Learn</h4>';
+                a.learning.forEach(l => { learningHtml += '<p style="margin:4px 0;font-size:0.9rem;">' + l + '</p>'; });
+                learningHtml += '</div>';
+            }
 
             let html = `
                 <div class="analysis-result">
@@ -1356,22 +1404,27 @@ MAIN_TEMPLATE = '''
                         </div>
                         <div style="text-align:right;">
                             <div style="font-size:0.85rem;color:var(--text-dim);">Confidence</div>
-                            <div style="font-size:1.5rem;font-weight:700;">${(a.confidence * 100).toFixed(0)}%</div>
+                            <div style="font-size:1.5rem;font-weight:700;">${a.confidence}</div>
+                            <div style="font-size:0.8rem;color:var(--text-dim);">${consensusPct}% consensus</div>
                         </div>
+                    </div>
+
+                    <div style="background:var(--bg);padding:12px;border-radius:8px;margin-bottom:20px;">
+                        <p style="margin:0;line-height:1.5;">${a.summary || ''}</p>
                     </div>
 
                     <div class="analysis-metrics">
                         <div class="analysis-metric">
-                            <div class="metric-label">Entry Zone</div>
-                            <div class="metric-value">${a.entry_zone?.length ? '$' + a.entry_zone.join(' - $') : 'N/A'}</div>
+                            <div class="metric-label">Entry</div>
+                            <div class="metric-value">${a.entry_zone || 'N/A'}</div>
                         </div>
                         <div class="analysis-metric">
-                            <div class="metric-label">Targets</div>
-                            <div class="metric-value">${a.targets?.length ? '$' + a.targets.join(', $') : 'N/A'}</div>
+                            <div class="metric-label">Take Profit</div>
+                            <div class="metric-value" style="color:var(--success);">${a.targets || 'N/A'}</div>
                         </div>
                         <div class="analysis-metric">
                             <div class="metric-label">Stop Loss</div>
-                            <div class="metric-value">${a.stop_loss ? '$' + a.stop_loss : 'N/A'}</div>
+                            <div class="metric-value" style="color:var(--danger);">${a.stop_loss || 'N/A'}</div>
                         </div>
                         <div class="analysis-metric">
                             <div class="metric-label">Hold Time</div>
@@ -1379,29 +1432,22 @@ MAIN_TEMPLATE = '''
                         </div>
                     </div>
 
-                    <h4 style="margin-bottom:16px;">Agent Votes</h4>
-                    <div class="agent-votes">
-                        <div class="agent-vote">
-                            <div class="agent-name">📊 Technical</div>
-                            <div class="agent-decision ${a.votes?.technical?.includes('BUY') ? 'signal-buy' : a.votes?.technical?.includes('SELL') ? 'signal-sell' : 'signal-hold'}">${a.votes?.technical || 'N/A'}</div>
+                    <div style="display:flex;gap:16px;margin-bottom:20px;">
+                        <div style="flex:1;background:rgba(16,185,129,0.1);padding:12px;border-radius:8px;border-left:3px solid var(--success);">
+                            <div style="font-size:0.8rem;color:var(--success);margin-bottom:4px;">Opportunity</div>
+                            <div style="font-size:0.9rem;">${a.opportunity || 'N/A'}</div>
                         </div>
-                        <div class="agent-vote">
-                            <div class="agent-name">📰 News</div>
-                            <div class="agent-decision ${a.votes?.news?.includes('BUY') ? 'signal-buy' : a.votes?.news?.includes('SELL') ? 'signal-sell' : 'signal-hold'}">${a.votes?.news || 'N/A'}</div>
-                        </div>
-                        <div class="agent-vote">
-                            <div class="agent-name">💬 Social</div>
-                            <div class="agent-decision ${a.votes?.social?.includes('BUY') ? 'signal-buy' : a.votes?.social?.includes('SELL') ? 'signal-sell' : 'signal-hold'}">${a.votes?.social || 'N/A'}</div>
-                        </div>
-                        <div class="agent-vote">
-                            <div class="agent-name">⚠️ Risk</div>
-                            <div class="agent-decision ${a.votes?.risk?.includes('BUY') ? 'signal-buy' : a.votes?.risk?.includes('SELL') ? 'signal-sell' : 'signal-hold'}">${a.votes?.risk || 'N/A'}</div>
-                        </div>
-                        <div class="agent-vote">
-                            <div class="agent-name">📈 Fundamental</div>
-                            <div class="agent-decision ${a.votes?.fundamental?.includes('BUY') ? 'signal-buy' : a.votes?.fundamental?.includes('SELL') ? 'signal-sell' : 'signal-hold'}">${a.votes?.fundamental || 'N/A'}</div>
+                        <div style="flex:1;background:rgba(239,68,68,0.1);padding:12px;border-radius:8px;border-left:3px solid var(--danger);">
+                            <div style="font-size:0.8rem;color:var(--danger);margin-bottom:4px;">Risk</div>
+                            <div style="font-size:0.9rem;">${a.risk || 'N/A'}</div>
                         </div>
                     </div>
+
+                    <h4 style="margin-bottom:16px;">Agent Votes</h4>
+                    <div class="agent-votes">${votesHtml}</div>
+
+                    ${reasoningHtml}
+                    ${learningHtml}
 
                     <div style="margin-top:24px;">
                         <button class="btn btn-success" onclick="executeTrade('${a.symbol}','buy')">Buy ${a.symbol}</button>
@@ -1686,18 +1732,33 @@ def api_deep_analysis(asset):
         print(f"\n🔬 Running deep analysis on {asset}...")
         analysis = coordinator.analyze(asset)
 
+        # Build votes from agent opinions
+        votes = {}
+        for agent_name, opinion in analysis.agent_opinions.items():
+            votes[agent_name] = {
+                "action": opinion.action.value,
+                "confidence": opinion.confidence.name,
+                "reasoning": opinion.reasoning
+            }
+
         return jsonify({
             "success": True,
             "analysis": {
                 "symbol": asset,
-                "recommendation": analysis.get("recommendation", "HOLD"),
-                "confidence": analysis.get("confidence", 0),
-                "entry_zone": analysis.get("entry_zone", []),
-                "targets": analysis.get("targets", []),
-                "stop_loss": analysis.get("stop_loss"),
-                "hold_time": analysis.get("hold_time"),
-                "votes": analysis.get("votes", {}),
-                "reasoning": analysis.get("reasoning", [])
+                "recommendation": analysis.action.value,
+                "confidence": analysis.confidence.name,
+                "consensus": analysis.consensus_level,
+                "summary": analysis.summary,
+                "entry_zone": analysis.recommended_entry,
+                "targets": f"+{analysis.take_profit_pct:.0f}%",
+                "stop_loss": f"-{analysis.stop_loss_pct:.0f}%",
+                "hold_time": analysis.suggested_hold_time,
+                "votes": votes,
+                "reasoning": analysis.key_reasons,
+                "opportunity": analysis.primary_opportunity,
+                "risk": analysis.primary_risk,
+                "learning": analysis.learning_points,
+                "warnings": analysis.warnings
             }
         })
     except Exception as e:
@@ -1780,16 +1841,20 @@ def api_chat():
         data = request.json
         message = data.get('message', '')
 
-        response = assistant.chat(message)
+        # process_message returns an AssistantResponse object
+        response = assistant.process_message(message)
 
         return jsonify({
             "success": True,
             "response": {
-                "message": response.get("message", "I didn't understand that."),
-                "action_taken": response.get("action_taken", False)
+                "message": response.message,
+                "action_taken": response.action_taken or False,
+                "suggestions": response.suggestions if hasattr(response, 'suggestions') else []
             }
         })
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"success": False, "error": str(e)})
 
 
