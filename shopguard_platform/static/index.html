@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShopGuard Convergence Dashboard</title>
+
+    <!-- React via CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            background: linear-gradient(90deg, #00d4ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-top: 15px;
+        }
+
+        .connection-status.connected {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        .connection-status.disconnected {
+            background: rgba(255, 68, 68, 0.2);
+            color: #ff4444;
+            border: 1px solid rgba(255, 68, 68, 0.3);
+        }
+
+        .connection-status.connecting {
+            background: rgba(255, 200, 0, 0.2);
+            color: #ffc800;
+            border: 1px solid rgba(255, 200, 0, 0.3);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected { background: #00ff88; }
+        .status-dot.disconnected { background: #ff4444; }
+        .status-dot.connecting { background: #ffc800; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-signal {
+            text-align: center;
+            padding: 30px;
+            margin-bottom: 30px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .signal-badge {
+            display: inline-block;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .signal-badge.waiting {
+            background: linear-gradient(135deg, #2d2d2d, #3d3d3d);
+            color: #888;
+            border: 2px solid #444;
+        }
+
+        .signal-badge.entry {
+            background: linear-gradient(135deg, #00ff88, #00d4ff);
+            color: #000;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+            animation: glow-green 2s infinite;
+        }
+
+        .signal-badge.exit {
+            background: linear-gradient(135deg, #ff4444, #ff8844);
+            color: #fff;
+            box-shadow: 0 0 30px rgba(255, 68, 68, 0.5);
+            animation: glow-red 2s infinite;
+        }
+
+        @keyframes glow-green {
+            0%, 100% { box-shadow: 0 0 30px rgba(0, 255, 136, 0.5); }
+            50% { box-shadow: 0 0 50px rgba(0, 255, 136, 0.8); }
+        }
+
+        @keyframes glow-red {
+            0%, 100% { box-shadow: 0 0 30px rgba(255, 68, 68, 0.5); }
+            50% { box-shadow: 0 0 50px rgba(255, 68, 68, 0.8); }
+        }
+
+        .signal-strength {
+            margin-top: 20px;
+            font-size: 1rem;
+            color: #888;
+        }
+
+        .pillars-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .pillar-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .pillar-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .pillar-card.passed {
+            border-color: rgba(0, 255, 136, 0.5);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.1);
+        }
+
+        .pillar-card.failed {
+            border-color: rgba(255, 68, 68, 0.3);
+        }
+
+        .pillar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .pillar-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .pillar-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .pillar-status.passed {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+        }
+
+        .pillar-status.failed {
+            background: rgba(255, 68, 68, 0.2);
+            color: #ff4444;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .metric-value.positive { color: #00ff88; }
+        .metric-value.negative { color: #ff4444; }
+        .metric-value.neutral { color: #ffc800; }
+
+        .gauge-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .circular-gauge {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+
+        .gauge-bg {
+            fill: none;
+            stroke: #2d2d2d;
+            stroke-width: 10;
+        }
+
+        .gauge-fill {
+            fill: none;
+            stroke-width: 10;
+            stroke-linecap: round;
+            transform: rotate(-90deg);
+            transform-origin: center;
+            transition: stroke-dashoffset 0.5s ease;
+        }
+
+        .gauge-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .entropy-bar {
+            height: 8px;
+            background: #2d2d2d;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .entropy-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease, background 0.5s ease;
+        }
+
+        .circuit-breakers {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 30px;
+        }
+
+        .breakers-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .breakers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .breaker-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+
+        .breaker-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .breaker-indicator.safe { background: #00ff88; }
+        .breaker-indicator.triggered { background: #ff4444; animation: blink 1s infinite; }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .recommendation {
+            text-align: center;
+            padding: 25px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .action-badge {
+            display: inline-block;
+            padding: 10px 30px;
+            border-radius: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .action-badge.STRONG_BUY { background: #00ff88; color: #000; }
+        .action-badge.BUY { background: #88ff88; color: #000; }
+        .action-badge.HOLD { background: #ffc800; color: #000; }
+        .action-badge.SELL { background: #ff8844; color: #fff; }
+        .action-badge.STRONG_SELL { background: #ff4444; color: #fff; }
+
+        .reasons-list {
+            margin-top: 20px;
+            text-align: left;
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+
+        .reasons-list h4 {
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 10px;
+        }
+
+        .reasons-list li {
+            padding: 5px 0;
+            font-size: 0.9rem;
+            list-style: none;
+        }
+
+        .reasons-list li::before {
+            content: "→ ";
+            color: #00d4ff;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #555;
+            font-size: 0.85rem;
+        }
+
+        .asset-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .asset-btn {
+            padding: 10px 25px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.05);
+            color: #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+
+        .asset-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .asset-btn.active {
+            background: linear-gradient(135deg, #00d4ff, #00ff88);
+            color: #000;
+            border-color: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // WebSocket URL - update this for production
+        const WS_URL = 'ws://localhost:8001/ws/signals';
+
+        // Circular Gauge Component
+        function CircularGauge({ value, max = 2, label, color }) {
+            const radius = 45;
+            const circumference = 2 * Math.PI * radius;
+            const percentage = Math.min(value / max, 1);
+            const offset = circumference * (1 - percentage);
+
+            return (
+                <div className="circular-gauge">
+                    <svg viewBox="0 0 120 120" width="120" height="120">
+                        <circle className="gauge-bg" cx="60" cy="60" r={radius} />
+                        <circle
+                            className="gauge-fill"
+                            cx="60"
+                            cy="60"
+                            r={radius}
+                            stroke={color}
+                            strokeDasharray={circumference}
+                            strokeDashoffset={offset}
+                        />
+                    </svg>
+                    <div className="gauge-value" style={{ color }}>
+                        {value.toFixed(2)}
+                    </div>
+                </div>
+            );
+        }
+
+        // Entropy Bar Component
+        function EntropyBar({ value }) {
+            const percentage = Math.min(value * 100, 100);
+            let color;
+            if (value < 0.4) color = '#00ff88';
+            else if (value < 0.6) color = '#ffc800';
+            else if (value < 0.8) color = '#ff8844';
+            else color = '#ff4444';
+
+            return (
+                <div className="entropy-bar">
+                    <div
+                        className="entropy-fill"
+                        style={{
+                            width: `${percentage}%`,
+                            background: `linear-gradient(90deg, ${color}, ${color}88)`
+                        }}
+                    />
+                </div>
+            );
+        }
+
+        // Main Dashboard Component
+        function ConvergenceDashboard() {
+            const [connected, setConnected] = useState(false);
+            const [connecting, setConnecting] = useState(true);
+            const [data, setData] = useState(null);
+            const [selectedAsset, setSelectedAsset] = useState('BTC');
+            const wsRef = useRef(null);
+            const reconnectTimeoutRef = useRef(null);
+
+            const connectWebSocket = () => {
+                setConnecting(true);
+
+                try {
+                    const ws = new WebSocket(`${WS_URL}?assets=${selectedAsset},ALL`);
+                    wsRef.current = ws;
+
+                    ws.onopen = () => {
+                        setConnected(true);
+                        setConnecting(false);
+                        console.log('WebSocket connected');
+                    };
+
+                    ws.onmessage = (event) => {
+                        try {
+                            const message = JSON.parse(event.data);
+                            if (message.type === 'signal_update' && message.asset === selectedAsset) {
+                                setData(message);
+                            }
+                        } catch (e) {
+                            console.error('Parse error:', e);
+                        }
+                    };
+
+                    ws.onclose = () => {
+                        setConnected(false);
+                        setConnecting(false);
+                        console.log('WebSocket closed, reconnecting in 3s...');
+                        reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
+                    };
+
+                    ws.onerror = (error) => {
+                        console.error('WebSocket error:', error);
+                        ws.close();
+                    };
+                } catch (e) {
+                    console.error('Connection error:', e);
+                    setConnecting(false);
+                    reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
+                }
+            };
+
+            useEffect(() => {
+                connectWebSocket();
+                return () => {
+                    if (wsRef.current) wsRef.current.close();
+                    if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+                };
+            }, [selectedAsset]);
+
+            // Get K-Factor color
+            const getKFactorColor = (k) => {
+                if (k > 1.5) return '#00ff88';
+                if (k > 1.2) return '#88ff88';
+                if (k > 0.8) return '#ffc800';
+                return '#ff4444';
+            };
+
+            // Get signal display
+            const getSignalDisplay = () => {
+                if (!data) return { text: 'WAITING', class: 'waiting' };
+                if (data.convergence?.entry_signal) return { text: 'SNIPE ENTRY', class: 'entry' };
+                if (data.convergence?.exit_signal) return { text: 'EXIT SIGNAL', class: 'exit' };
+                return { text: 'WAITING', class: 'waiting' };
+            };
+
+            const signal = getSignalDisplay();
+
+            return (
+                <div className="dashboard">
+                    {/* Header */}
+                    <div className="header">
+                        <h1>ShopGuard Convergence</h1>
+                        <p className="subtitle">Three-Pillar Trading Signal System</p>
+
+                        <div className={`connection-status ${connected ? 'connected' : connecting ? 'connecting' : 'disconnected'}`}>
+                            <span className={`status-dot ${connected ? 'connected' : connecting ? 'connecting' : 'disconnected'}`}></span>
+                            {connected ? 'Live' : connecting ? 'Connecting...' : 'Disconnected'}
+                        </div>
+                    </div>
+
+                    {/* Asset Selector */}
+                    <div className="asset-selector">
+                        {['BTC', 'ETH', 'SPY', 'QQQ', 'NVDA'].map(asset => (
+                            <button
+                                key={asset}
+                                className={`asset-btn ${selectedAsset === asset ? 'active' : ''}`}
+                                onClick={() => setSelectedAsset(asset)}
+                            >
+                                {asset}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Main Signal */}
+                    <div className="main-signal">
+                        <div className={`signal-badge ${signal.class}`}>
+                            {signal.text}
+                        </div>
+                        {data && (
+                            <div className="signal-strength">
+                                Signal Strength: {(data.convergence?.signal_strength || 0).toFixed(1)} / 3
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Three Pillars */}
+                    <div className="pillars-grid">
+                        {/* Bio Check - Viral K-Factor */}
+                        <div className={`pillar-card ${data?.bio?.passed ? 'passed' : 'failed'}`}>
+                            <div className="pillar-header">
+                                <span className="pillar-title">Bio-Check (Viral K-Factor)</span>
+                                <span className={`pillar-status ${data?.bio?.passed ? 'passed' : 'failed'}`}>
+                                    {data?.bio?.passed ? 'PASSED' : 'WAITING'}
+                                </span>
+                            </div>
+
+                            <div className="gauge-container">
+                                <CircularGauge
+                                    value={data?.bio?.k_factor || 1.0}
+                                    max={2}
+                                    label="K-Factor"
+                                    color={getKFactorColor(data?.bio?.k_factor || 1.0)}
+                                />
+                            </div>
+
+                            <div className="metric-row">
+                                <span className="metric-label">Signal</span>
+                                <span className={`metric-value ${
+                                    data?.bio?.signal === 'EXPLOSIVE' || data?.bio?.signal === 'GROWING' ? 'positive' :
+                                    data?.bio?.signal === 'DECLINING' ? 'negative' : 'neutral'
+                                }`}>
+                                    {data?.bio?.signal || 'STABLE'}
+                                </span>
+                            </div>
+
+                            <div className="metric-row">
+                                <span className="metric-label">Acceleration</span>
+                                <span className={`metric-value ${(data?.bio?.acceleration || 0) > 0 ? 'positive' : 'negative'}`}>
+                                    {(data?.bio?.acceleration || 0) > 0 ? '+' : ''}{(data?.bio?.acceleration || 0).toFixed(3)}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Physics Check - Entropy */}
+                        <div className={`pillar-card ${data?.physics?.passed ? 'passed' : 'failed'}`}>
+                            <div className="pillar-header">
+                                <span className="pillar-title">Physics-Check (Entropy)</span>
+                                <span className={`pillar-status ${data?.physics?.passed ? 'passed' : 'failed'}`}>
+                                    {data?.physics?.passed ? 'PASSED' : 'WAITING'}
+                                </span>
+                            </div>
+
+                            <div className="metric-row">
+                                <span className="metric-label">Shannon Entropy</span>
+                                <span className={`metric-value ${
+                                    (data?.physics?.entropy || 0.5) < 0.4 ? 'positive' :
+                                    (data?.physics?.entropy || 0.5) > 0.7 ? 'negative' : 'neutral'
+                                }`}>
+                                    {(data?.physics?.entropy || 0.5).toFixed(3)}
+                                </span>
+                            </div>
+
+                            <EntropyBar value={data?.physics?.entropy || 0.5} />
+
+                            <div className="metric-row">
+                                <span className="metric-label">Market Regime</span>
+                                <span className="metric-value neutral">
+                                    {data?.physics?.market_regime || 'CAUTION'}
+                                </span>
+                            </div>
+
+                            <div className="metric-row">
+                                <span className="metric-label">Hurst Exponent</span>
+                                <span className={`metric-value ${
+                                    (data?.physics?.hurst || 0.5) > 0.6 ? 'positive' :
+                                    (data?.physics?.hurst || 0.5) < 0.4 ? 'negative' : 'neutral'
+                                }`}>
+                                    {(data?.physics?.hurst || 0.5).toFixed(3)}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Micro Check - CVD */}
+                        <div className={`pillar-card ${data?.micro?.passed ? 'passed' : 'failed'}`}>
+                            <div className="pillar-header">
+                                <span className="pillar-title">Micro-Check (CVD)</span>
+                                <span className={`pillar-status ${data?.micro?.passed ? 'passed' : 'failed'}`}>
+                                    {data?.micro?.passed ? 'PASSED' : 'WAITING'}
+                                </span>
+                            </div>
+
+                            <div className="metric-row">
+                                <span className="metric-label">CVD Value</span>
+                                <span className={`metric-value ${
+                                    (data?.micro?.cvd_value || 0) > 0 ? 'positive' : 'negative'
+                                }`}>
+                                    {(data?.micro?.cvd_value || 0).toFixed(2)}
+                                </span>
+                            </div>
+
+                            <div className="metric-row">
+                                <span className="metric-label">CVD Trend</span>
+                                <span className={`metric-value ${
+                                    data?.micro?.cvd_trend === 'ACCUMULATION' ? 'positive' :
+                                    data?.micro?.cvd_trend === 'DISTRIBUTION' ? 'negative' : 'neutral'
+                                }`}>
+                                    {data?.micro?.cvd_trend || 'NEUTRAL'}
+                                </span>
+                            </div>
+
+                            <div className="metric-row">
+                                <span className="metric-label">Whale Trap</span>
+                                <span className={`metric-value ${data?.micro?.whale_trap ? 'positive' : 'neutral'}`}>
+                                    {data?.micro?.whale_trap ? 'DETECTED' : 'None'}
+                                </span>
+                            </div>
+
+                            <div className="metric-row">
+                                <span className="metric-label">Distribution</span>
+                                <span className={`metric-value ${data?.micro?.distribution ? 'negative' : 'neutral'}`}>
+                                    {data?.micro?.distribution ? 'ACTIVE' : 'None'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Circuit Breakers */}
+                    <div className="circuit-breakers">
+                        <h3 className="breakers-title">
+                            Circuit Breakers
+                        </h3>
+                        <div className="breakers-grid">
+                            <div className="breaker-item">
+                                <span className={`breaker-indicator ${data?.circuit_breakers?.entropy_breaker ? 'triggered' : 'safe'}`}></span>
+                                <span>Entropy Breaker</span>
+                            </div>
+                            <div className="breaker-item">
+                                <span className={`breaker-indicator ${data?.circuit_breakers?.viral_death ? 'triggered' : 'safe'}`}></span>
+                                <span>Viral Death</span>
+                            </div>
+                            <div className="breaker-item">
+                                <span className={`breaker-indicator ${data?.circuit_breakers?.distribution_exit ? 'triggered' : 'safe'}`}></span>
+                                <span>Distribution Exit</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Recommendation */}
+                    <div className="recommendation">
+                        <h3 style={{ marginBottom: '15px', color: '#888' }}>Recommendation</h3>
+                        <span className={`action-badge ${data?.recommendation?.action || 'HOLD'}`}>
+                            {data?.recommendation?.action || 'HOLD'}
+                        </span>
+                        <p style={{ marginTop: '15px', color: '#888' }}>
+                            Confidence: {data?.recommendation?.confidence || 'LOW'} |
+                            Consensus: {((data?.recommendation?.consensus || 0) * 100).toFixed(0)}%
+                        </p>
+
+                        {(data?.entry_reasons?.length > 0 || data?.exit_reasons?.length > 0) && (
+                            <div className="reasons-list">
+                                {data?.entry_reasons?.length > 0 && (
+                                    <>
+                                        <h4>Entry Reasons:</h4>
+                                        <ul>
+                                            {data.entry_reasons.map((reason, i) => (
+                                                <li key={i}>{reason}</li>
+                                            ))}
+                                        </ul>
+                                    </>
+                                )}
+                                {data?.exit_reasons?.length > 0 && (
+                                    <>
+                                        <h4>Exit Reasons:</h4>
+                                        <ul>
+                                            {data.exit_reasons.map((reason, i) => (
+                                                <li key={i}>{reason}</li>
+                                            ))}
+                                        </ul>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="footer">
+                        <p>ShopGuard Convergence Dashboard | Last Update: {data?.timestamp || 'Waiting...'}</p>
+                        <p style={{ marginTop: '5px' }}>Asset: {selectedAsset}</p>
+                    </div>
+                </div>
+            );
+        }
+
+        // Render the app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ConvergenceDashboard />);
+    </script>
+</body>
+</html>

@@ -13,13 +13,104 @@ Analysis:
 - FOMO/FUD detection
 - Whale watching (large position mentions)
 - Contrarian indicators (extreme sentiment = potential reversal)
+
+Circuit Breaker Pattern:
+- Handles Reddit API failures gracefully
+- Returns neutral signals instead of crashing
+- Tracks failure states for recovery
 """
 import re
+import time
 import requests
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from .base_agent import BaseAgent, AgentOpinion, Action, Confidence
+
+# Import logging
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+try:
+    from utils.logging_config import agent_logger as logger
+except ImportError:
+    import logging
+    logger = logging.getLogger(__name__)
+
+
+class CircuitState(Enum):
+    """Circuit breaker states"""
+    CLOSED = "closed"      # Normal operation
+    OPEN = "open"          # Failing, reject requests
+    HALF_OPEN = "half_open"  # Testing recovery
+
+
+@dataclass
+class CircuitBreaker:
+    """
+    Circuit breaker for external API calls.
+
+    Prevents cascade failures when external services are down.
+    - CLOSED: Normal operation, requests pass through
+    - OPEN: Service failing, return fallback immediately
+    - HALF_OPEN: Testing if service recovered
+    """
+    failure_threshold: int = 3  # Failures before opening
+    recovery_timeout: float = 60.0  # Seconds before trying again
+    half_open_max_calls: int = 1  # Test calls in half-open
+
+    state: CircuitState = CircuitState.CLOSED
+    failure_count: int = 0
+    last_failure_time: float = 0.0
+    half_open_calls: int = 0
+
+    def can_execute(self) -> bool:
+        """Check if request should be allowed"""
+        if self.state == CircuitState.CLOSED:
+            return True
+
+        if self.state == CircuitState.OPEN:
+            # Check if recovery timeout has passed
+            if time.time() - self.last_failure_time >= self.recovery_timeout:
+                logger.info("Circuit breaker transitioning to HALF_OPEN")
+                self.state = CircuitState.HALF_OPEN
+                self.half_open_calls = 0
+                return True
+            return False
+
+        if self.state == CircuitState.HALF_OPEN:
+            return self.half_open_calls < self.half_open_max_calls
+
+        return False
+
+    def record_success(self):
+        """Record a successful call"""
+        if self.state == CircuitState.HALF_OPEN:
+            logger.info("Circuit breaker CLOSED - service recovered")
+            self.state = CircuitState.CLOSED
+        self.failure_count = 0
+
+    def record_failure(self, error: str = ""):
+        """Record a failed call"""
+        self.failure_count += 1
+        self.last_failure_time = time.time()
+
+        if self.state == CircuitState.HALF_OPEN:
+            logger.warning(f"Circuit breaker OPEN - recovery failed: {error}")
+            self.state = CircuitState.OPEN
+        elif self.failure_count >= self.failure_threshold:
+            logger.warning(f"Circuit breaker OPEN - threshold reached: {error}")
+            self.state = CircuitState.OPEN
+
+    def get_status(self) -> Dict[str, Any]:
+        """Get circuit breaker status"""
+        return {
+            "state": self.state.value,
+            "failure_count": self.failure_count,
+            "time_until_recovery": max(0, self.recovery_timeout - (time.time() - self.last_failure_time))
+            if self.state == CircuitState.OPEN else 0
+        }
 
 
 @dataclass
@@ -72,12 +163,20 @@ class SocialAgent(BaseAgent):
     """
     Social Sentiment Agent
     Analyzes community sentiment and social media discussions
+
+    Features circuit breaker pattern for Reddit API resilience.
     """
 
     def __init__(self):
         super().__init__(
             name="Social Sentiment Agent",
             specialty="Community sentiment, social media trends, and crowd psychology"
+        )
+
+        # Circuit breaker for Reddit API
+        self.reddit_circuit = CircuitBreaker(
+            failure_threshold=3,
+            recovery_timeout=60.0
         )
 
         # Subreddits to monitor
@@ -126,8 +225,20 @@ class SocialAgent(BaseAgent):
         }
 
     def fetch_reddit_data(self, asset: str) -> List[SocialPost]:
-        """Fetch posts from relevant subreddits"""
+        """
+        Fetch posts from relevant subreddits with circuit breaker protection.
+
+        Returns empty list if circuit is open (service unavailable).
+        """
+        # Check circuit breaker first
+        if not self.reddit_circuit.can_execute():
+            status = self.reddit_circuit.get_status()
+            logger.warning(f"Reddit circuit OPEN - skipping fetch. Recovery in {status['time_until_recovery']:.0f}s")
+            return []
+
         posts = []
+        request_failed = False
+        error_msg = ""
 
         # Determine which subreddits to check
         if asset in ['BTC', 'ETH']:
@@ -179,8 +290,27 @@ class SocialAgent(BaseAgent):
                             mentions_ticker=any(term in full_text.lower() for term in search_terms),
                             position_size=position
                         ))
+                elif response.status_code == 429:
+                    # Rate limited
+                    request_failed = True
+                    error_msg = "Reddit rate limit (429)"
+                    logger.warning(f"Reddit rate limited for r/{subreddit}")
+                elif response.status_code >= 500:
+                    # Server error
+                    request_failed = True
+                    error_msg = f"Reddit server error ({response.status_code})"
+                    logger.error(f"Reddit server error {response.status_code} for r/{subreddit}")
 
+            except requests.exceptions.Timeout:
+                request_failed = True
+                error_msg = "Reddit timeout"
+                logger.warning(f"Reddit timeout for r/{subreddit}")
+            except requests.exceptions.ConnectionError as e:
+                request_failed = True
+                error_msg = f"Reddit connection error: {str(e)[:50]}"
+                logger.error(f"Reddit connection error for r/{subreddit}: {e}")
             except Exception as e:
+                logger.debug(f"Reddit fetch error for r/{subreddit}: {e}")
                 continue
 
         # Also check hot posts in main subreddits
@@ -220,13 +350,25 @@ class SocialAgent(BaseAgent):
                                 position_size=self._extract_position(full_text)
                             ))
 
-            except:
+            except Exception as e:
+                logger.debug(f"Reddit hot posts error for r/{subreddit}: {e}")
                 continue
+
+        # Update circuit breaker state
+        if request_failed and not posts:
+            self.reddit_circuit.record_failure(error_msg)
+        elif posts:
+            self.reddit_circuit.record_success()
+            logger.debug(f"Fetched {len(posts)} posts for {asset}")
 
         # Sort by engagement (score + comments)
         posts.sort(key=lambda x: x.score + x.comments * 2, reverse=True)
 
         return posts[:25]  # Return top 25
+
+    def get_circuit_status(self) -> Dict[str, Any]:
+        """Get Reddit API circuit breaker status"""
+        return self.reddit_circuit.get_status()
 
     def _analyze_sentiment(self, text: str) -> float:
         """Analyze sentiment of social post"""
