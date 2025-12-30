@@ -157,9 +157,20 @@ class TradingAssistant:
         if 'close all' in msg_lower:
             return Intent(type=IntentType.CLOSE_ALL, raw_query=message)
 
-        # Analysis
-        if any(w in msg_lower for w in ['analyze', 'analysis', 'analyse', 'deep dive', 'research']):
+        # Analysis - expanded patterns
+        analysis_patterns = [
+            'analyze', 'analysis', 'analyse', 'deep dive', 'research',
+            'what do you think', 'should i', 'is it good', 'is it bad',
+            'will it go', 'price prediction', 'forecast', 'outlook',
+            'bullish', 'bearish', 'momentum', 'trend',
+            'next move', 'what could', 'what would', 'change your',
+            'recommendation', 'signal', 'when should'
+        ]
+        if any(w in msg_lower for w in analysis_patterns):
             asset = self._extract_asset(message)
+            # If no asset found, check context for last mentioned asset
+            if not asset and self.user_context.get("last_asset_mentioned"):
+                asset = self.user_context["last_asset_mentioned"]
             return Intent(type=IntentType.ANALYZE, asset=asset, raw_query=message)
 
         if any(w in msg_lower for w in ['scan', 'find signals', 'check market', 'market scan']):
@@ -168,7 +179,7 @@ class TradingAssistant:
         if any(w in msg_lower for w in ['opportunities', 'opportunity', 'what should i', 'what to trade']):
             return Intent(type=IntentType.FIND_OPPORTUNITIES, raw_query=message)
 
-        if any(w in msg_lower for w in ['price', 'how much', 'what is', 'current']) and self._extract_asset(message):
+        if any(w in msg_lower for w in ['price', 'how much', 'current']) and self._extract_asset(message):
             asset = self._extract_asset(message)
             return Intent(type=IntentType.CHECK_PRICE, asset=asset, raw_query=message)
 
@@ -203,6 +214,17 @@ class TradingAssistant:
         # System
         if any(w in msg_lower for w in ['status', 'system', 'running', 'working']):
             return Intent(type=IntentType.SYSTEM_STATUS, raw_query=message)
+
+        # Smart fallback: If message contains an asset, analyze it
+        asset = self._extract_asset(message)
+        if asset:
+            return Intent(type=IntentType.ANALYZE, asset=asset, raw_query=message)
+
+        # If there's a last mentioned asset and it seems like a follow-up question
+        if self.user_context.get("last_asset_mentioned"):
+            followup_words = ['it', 'that', 'this', 'move', 'change', 'go', 'drop', 'rise', 'pump', 'dump', 'break', 'hold', 'buy', 'sell', 'when', 'what', 'why', 'how', 'could', 'would', 'should', 'will', 'can']
+            if any(w in msg_lower for w in followup_words):
+                return Intent(type=IntentType.ANALYZE, asset=self.user_context["last_asset_mentioned"], raw_query=message)
 
         # Unknown - try to be helpful
         return Intent(type=IntentType.UNKNOWN, raw_query=message)
@@ -475,13 +497,198 @@ I'll monitor this position for you. Say "show positions" to see your holdings.""
 
         try:
             analysis = self.coordinator.analyze(intent.asset, capital=100)
+            query = intent.raw_query.lower()
 
-            # Build detailed response
-            agent_summary = ""
-            for name, opinion in analysis.agent_opinions.items():
-                agent_summary += f"\n• **{opinion.agent_name}**: {opinion.action.value} ({opinion.confidence.name})"
+            # Check if user is asking about what would change the recommendation
+            if any(phrase in query for phrase in ['change', 'what would', 'what could', 'when would', 'when will', 'what move', 'what if']):
+                return self._build_change_recommendation_response(intent.asset, analysis)
 
-            response = f"""🧠 **Deep Analysis: {intent.asset}**
+            # Check if user is asking about prediction/direction
+            if any(phrase in query for phrase in ['will it', 'going to', 'predict', 'next', 'where', 'direction']):
+                return self._build_prediction_response(intent.asset, analysis)
+
+            # Check if user is asking for opinion/advice
+            if any(phrase in query for phrase in ['should i', 'do you think', 'is it good', 'is it worth', 'recommend']):
+                return self._build_opinion_response(intent.asset, analysis)
+
+            # Default: Full analysis
+            return self._build_full_analysis_response(intent.asset, analysis)
+
+        except Exception as e:
+            return AssistantResponse(message=f"Error analyzing {intent.asset}: {str(e)}")
+
+    def _build_change_recommendation_response(self, asset: str, analysis) -> AssistantResponse:
+        """Build response for 'what would change your recommendation' questions"""
+        action = analysis.action.value
+        tech = analysis.agent_opinions.get('technical', {})
+
+        # Get key levels from technical analysis
+        support = tech.indicators.get('support', 0) if hasattr(tech, 'indicators') else 0
+        resistance = tech.indicators.get('resistance', 0) if hasattr(tech, 'indicators') else 0
+        rsi = tech.indicators.get('rsi', 50) if hasattr(tech, 'indicators') else 50
+
+        if 'HOLD' in action:
+            response = f"""🔄 **What Would Change My HOLD on {asset}?**
+
+My current recommendation is **HOLD** because the signals are mixed. Here's what could shift my view:
+
+**📈 For a BUY signal, I'd want to see:**
+• RSI dropping below 30 (currently {rsi:.0f}) - showing oversold conditions
+• Price bouncing off support level{f' around ${support:,.0f}' if support else ''}
+• Positive news catalyst or social sentiment shift
+• Multiple agents agreeing on bullish outlook (currently {analysis.consensus_level:.0%} consensus)
+
+**📉 For a SELL signal, I'd want to see:**
+• RSI spiking above 70 - showing overbought conditions
+• Price rejecting resistance{f' around ${resistance:,.0f}' if resistance else ''}
+• Negative news or bearish social sentiment
+• Breakdown below key support levels
+
+**⏰ KEY LEVELS TO WATCH:**
+• Support: {f'${support:,.0f}' if support else 'Calculating...'}
+• Resistance: {f'${resistance:,.0f}' if resistance else 'Calculating...'}
+
+**💡 TIP:** In uncertain markets, patience pays. Wait for clearer signals rather than forcing a trade."""
+
+        elif 'BUY' in action:
+            response = f"""🔄 **What Would Change My BUY on {asset}?**
+
+I'm currently bullish with a **{action}** recommendation. Here's what could change my mind:
+
+**⚠️ Warning signs that would flip me to HOLD/SELL:**
+• RSI climbing above 70 (currently {rsi:.0f}) - overbought territory
+• Price failing at resistance{f' near ${resistance:,.0f}' if resistance else ''}
+• Negative news breaking or social sentiment turning fearful
+• Volume drying up on the rally
+
+**✅ What would strengthen my conviction:**
+• Breaking above resistance with strong volume
+• RSI staying in 50-70 range (healthy momentum)
+• Continued positive news flow
+• Social sentiment staying bullish without extreme FOMO
+
+**⏰ KEY LEVELS:**
+• Stop Loss Zone: {f'${support:,.0f}' if support else '-3% from entry'}
+• Take Profit Zone: {f'${resistance:,.0f}' if resistance else '+6% from entry'}"""
+
+        else:  # SELL
+            response = f"""🔄 **What Would Change My SELL on {asset}?**
+
+I'm currently bearish with a **{action}** recommendation. Here's what could change my mind:
+
+**✅ Signs that would flip me to HOLD/BUY:**
+• RSI dropping below 30 (currently {rsi:.0f}) - oversold bounce potential
+• Price holding at support{f' near ${support:,.0f}' if support else ''}
+• Positive news catalyst emerging
+• Extreme FUD in social media (contrarian buy signal)
+
+**⚠️ What would confirm my bearish view:**
+• Breaking below key support levels
+• RSI staying below 50
+• Continued negative news or sentiment
+• Lower highs and lower lows pattern
+
+**⏰ KEY LEVELS:**
+• Critical Support: {f'${support:,.0f}' if support else 'Calculating...'}
+• Resistance to reclaim: {f'${resistance:,.0f}' if resistance else 'Calculating...'}"""
+
+        return AssistantResponse(
+            message=response,
+            data={"analysis": analysis.to_dict()},
+            suggestions=[f"Analyze {asset}", "Scan market", "Show opportunities"]
+        )
+
+    def _build_prediction_response(self, asset: str, analysis) -> AssistantResponse:
+        """Build response for prediction/direction questions"""
+        action = analysis.action.value
+        confidence = analysis.confidence.name
+
+        direction = "UP 📈" if 'BUY' in action else "DOWN 📉" if 'SELL' in action else "SIDEWAYS ↔️"
+
+        response = f"""🔮 **{asset} Direction Outlook**
+
+**Expected Direction:** {direction}
+**Confidence:** {confidence}
+**Timeframe:** {analysis.suggested_hold_time}
+
+**Why I think this:**
+{analysis.summary}
+
+**Key Factors:**
+"""
+        for reason in analysis.key_reasons[:3]:
+            response += f"• {reason}\n"
+
+        response += f"""
+**📊 Agent Consensus:** {analysis.consensus_level:.0%}
+• Technical: {analysis.agent_opinions.get('technical', {}).action.value if hasattr(analysis.agent_opinions.get('technical', {}), 'action') else 'N/A'}
+• News: {analysis.agent_opinions.get('news', {}).action.value if hasattr(analysis.agent_opinions.get('news', {}), 'action') else 'N/A'}
+• Social: {analysis.agent_opinions.get('social', {}).action.value if hasattr(analysis.agent_opinions.get('social', {}), 'action') else 'N/A'}
+
+**⚠️ DISCLAIMER:** This is algorithmic analysis, not financial advice. Markets can move unexpectedly!"""
+
+        return AssistantResponse(
+            message=response,
+            data={"analysis": analysis.to_dict()},
+            suggestions=[f"Buy {asset}", f"What would change this?", "Show my portfolio"]
+        )
+
+    def _build_opinion_response(self, asset: str, analysis) -> AssistantResponse:
+        """Build response for 'should I buy/sell' questions"""
+        action = analysis.action.value
+        confidence = analysis.confidence.name
+
+        if 'STRONG_BUY' in action:
+            verdict = "Yes, this looks like a good opportunity! 🟢"
+            advice = "Multiple signals align bullishly. Consider a position with proper risk management."
+        elif 'BUY' in action:
+            verdict = "Leaning yes, but with caution 🟡"
+            advice = "Signals are moderately bullish. Use a smaller position size and set a stop loss."
+        elif 'STRONG_SELL' in action:
+            verdict = "No, I'd avoid buying right now 🔴"
+            advice = "Multiple bearish signals. If you're holding, consider reducing or exiting."
+        elif 'SELL' in action:
+            verdict = "Probably not the best time 🟠"
+            advice = "Signals lean bearish. Wait for better entry or set tight stops."
+        else:
+            verdict = "I'm neutral - no strong edge either way ⚪"
+            advice = "Signals are mixed. Best to wait for clearer direction."
+
+        response = f"""💭 **My Opinion on {asset}**
+
+**Verdict:** {verdict}
+**Recommendation:** {action}
+**Confidence:** {confidence}
+
+**My Advice:** {advice}
+
+**Quick Summary:**
+{analysis.summary[:300]}...
+
+**Opportunity:** {analysis.primary_opportunity}
+**Risk:** {analysis.primary_risk}
+
+**Position Guidance:**
+• Entry: {analysis.recommended_entry}
+• Stop Loss: -{analysis.stop_loss_pct:.0f}%
+• Take Profit: +{analysis.take_profit_pct:.0f}%
+• Hold Time: {analysis.suggested_hold_time}
+
+*Remember: Never risk more than 1-2% of your portfolio on a single trade!*"""
+
+        return AssistantResponse(
+            message=response,
+            data={"analysis": analysis.to_dict()},
+            suggestions=[f"Buy {asset}" if 'BUY' in action else "Find opportunities", "Explain risk management", "Show portfolio"]
+        )
+
+    def _build_full_analysis_response(self, asset: str, analysis) -> AssistantResponse:
+        """Build the full detailed analysis response"""
+        agent_summary = ""
+        for name, opinion in analysis.agent_opinions.items():
+            agent_summary += f"\n• **{opinion.agent_name}**: {opinion.action.value} ({opinion.confidence.name})"
+
+        response = f"""🧠 **Deep Analysis: {asset}**
 
 **RECOMMENDATION**: {analysis.action.value}
 **CONFIDENCE**: {analysis.confidence.name}
@@ -498,29 +705,26 @@ I'll monitor this position for you. Say "show positions" to see your holdings.""
 
 **📋 KEY REASONS**:
 """
-            for reason in analysis.key_reasons[:4]:
-                response += f"• {reason}\n"
+        for reason in analysis.key_reasons[:4]:
+            response += f"• {reason}\n"
 
-            response += f"""
+        response += f"""
 **⏱️ SUGGESTED HOLD TIME**: {analysis.suggested_hold_time}
 
 **📚 WHAT YOU CAN LEARN**:
 """
-            for point in analysis.learning_points[:2]:
-                response += f"• {point}\n"
+        for point in analysis.learning_points[:2]:
+            response += f"• {point}\n"
 
-            return AssistantResponse(
-                message=response,
-                data={"analysis": analysis.to_dict()},
-                suggestions=[
-                    f"Buy {intent.asset}" if 'BUY' in analysis.action.value else f"Analyze another asset",
-                    "Show opportunities",
-                    f"Explain the indicators"
-                ]
-            )
-
-        except Exception as e:
-            return AssistantResponse(message=f"Error analyzing {intent.asset}: {str(e)}")
+        return AssistantResponse(
+            message=response,
+            data={"analysis": analysis.to_dict()},
+            suggestions=[
+                f"Buy {asset}" if 'BUY' in analysis.action.value else f"Analyze another asset",
+                "Show opportunities",
+                f"What would change this recommendation?"
+            ]
+        )
 
     def _handle_scan(self, intent: Intent) -> AssistantResponse:
         try:
