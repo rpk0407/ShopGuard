@@ -771,7 +771,16 @@
                     {/* Footer */}
                     <div className="footer">
                         <p>ShopGuard Convergence Dashboard | Last Update: {data?.timestamp || 'Waiting...'}</p>
-                        <p style={{ marginTop: '5px' }}>Asset: {selectedAsset}</p>
+                        <p style={{ marginTop: '5px' }}>
+                            Asset: {selectedAsset}
+                            {data?.price && ` | Price: $${data.price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
+                            {data?.market_phase && ` | Phase: ${data.market_phase.toUpperCase()}`}
+                        </p>
+                        {data?.source === 'matrix' && (
+                            <p style={{ marginTop: '5px', color: '#00d4ff' }}>
+                                🔮 MATRIX SIMULATION MODE - Perfect Storm events every 60 seconds
+                            </p>
+                        )}
                     </div>
                 </div>
             );
