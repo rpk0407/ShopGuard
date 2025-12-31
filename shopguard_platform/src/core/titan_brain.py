@@ -10,6 +10,10 @@ Architecture:
     - Applies three-pillar convergence detection
     - Parameters updated in real-time by Darwin
     - Emits trading signals with confidence scores
+
+PROFESSIONAL UPGRADE (Phase 1 & 2):
+    - Dynamic Risk Engine: ATR-based stops that breathe with volatility
+    - Narrative Engine: Plain English explanations like a senior trader
 """
 
 import time
@@ -19,6 +23,10 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Callable, Any
 from enum import Enum
 from collections import deque
+
+# Professional-grade risk and narrative engines
+from .risk_math import DynamicRiskEngine, RiskCalculation, get_risk_engine
+from .analyst import NarrativeEngine, TradeNarrative, get_narrative_engine
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +90,7 @@ class BrainConfig:
 
 @dataclass
 class TradingSignal:
-    """Output signal from TitanBrain"""
+    """Output signal from TitanBrain - Now with professional risk and narrative"""
     signal_type: SignalType
     confidence: float                      # 0.0 - 1.0
     conviction: float                      # Raw conviction score
@@ -103,10 +111,33 @@ class TradingSignal:
     cvd: float
     market_phase: str
 
-    # Recommendations
+    # === PROFESSIONAL UPGRADE: Dynamic Risk ===
     position_size: float
     stop_loss: float
     take_profit: float
+
+    # ATR-based risk details
+    atr: float = 0.0
+    atr_pct: float = 0.0
+    volatility_regime: str = "normal"
+    risk_reward_ratio: float = 2.0
+    trade_quality: str = "B"
+    quality_reason: str = ""
+    max_loss_amount: float = 0.0
+    potential_profit: float = 0.0
+
+    # === PROFESSIONAL UPGRADE: Narrative ===
+    headline: str = ""
+    story: str = ""
+    narrative_type: str = ""
+    bio_explanation: str = ""
+    physics_explanation: str = ""
+    micro_explanation: str = ""
+    conviction_level: str = ""
+    conviction_reason: str = ""
+    risk_warning: str = ""
+    invalidation: str = ""
+    time_horizon: str = ""
 
     def to_dict(self) -> Dict:
         return {
@@ -129,12 +160,69 @@ class TradingSignal:
                 'cvd': self.cvd
             },
             'phase': self.market_phase,
-            'recommendations': {
+            # Professional risk management
+            'risk': {
                 'position_size': self.position_size,
-                'stop_loss': self.stop_loss,
-                'take_profit': self.take_profit
+                'stop_loss': round(self.stop_loss, 2),
+                'take_profit': round(self.take_profit, 2),
+                'atr': round(self.atr, 2),
+                'atr_pct': round(self.atr_pct * 100, 3),
+                'volatility_regime': self.volatility_regime,
+                'risk_reward': self.risk_reward_ratio,
+                'trade_quality': self.trade_quality,
+                'quality_reason': self.quality_reason,
+                'max_loss': round(self.max_loss_amount, 2),
+                'potential_profit': round(self.potential_profit, 2)
+            },
+            # Professional narrative
+            'narrative': {
+                'headline': self.headline,
+                'story': self.story,
+                'type': self.narrative_type,
+                'bio': self.bio_explanation,
+                'physics': self.physics_explanation,
+                'micro': self.micro_explanation,
+                'conviction': self.conviction_level,
+                'conviction_reason': self.conviction_reason,
+                'risk_warning': self.risk_warning,
+                'invalidation': self.invalidation,
+                'time_horizon': self.time_horizon
             }
         }
+
+    def format_professional_output(self) -> str:
+        """Format signal as professional trade ticket with narrative"""
+        pillars_aligned = sum([self.bio_check, self.physics_check, self.micro_check, self.cvd_check])
+
+        return f"""
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  {self.headline[:74]:<74}  ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  SIGNAL: {self.signal_type.value:<12}  |  QUALITY: {self.trade_quality:<5}  |  PILLARS: {pillars_aligned}/4           ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║                                                                              ║
+║  {self.story[:76]:<76}  ║
+║  {self.story[76:152] if len(self.story) > 76 else '':<76}  ║
+║  {self.story[152:228] if len(self.story) > 152 else '':<76}  ║
+║                                                                              ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  TRADE TICKET                                                                ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  Entry:       ${self.price:>12,.2f}                                              ║
+║  Stop Loss:   ${self.stop_loss:>12,.2f}  ({(abs(self.price - self.stop_loss) / self.price * 100):>5.2f}% risk)                     ║
+║  Take Profit: ${self.take_profit:>12,.2f}  ({(abs(self.take_profit - self.price) / self.price * 100):>5.2f}% reward)                   ║
+║  Risk/Reward: {self.risk_reward_ratio:>5.1f}:1                                                       ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  Position:    {self.position_size * 100:>5.1f}% of portfolio                                          ║
+║  Max Loss:    ${self.max_loss_amount:>8,.2f}  |  Potential: +${self.potential_profit:>8,.2f}                ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  Volatility:  {self.volatility_regime:<12}  |  ATR: ${self.atr:>8,.2f} ({self.atr_pct * 100:.2f}%)                ║
+║  Time Frame:  {self.time_horizon:<50}     ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║  ⚠️  {self.risk_warning[:71]:<71}  ║
+║  ❌ {self.invalidation[:72]:<72}  ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+"""
 
 
 class TitanBrain:
@@ -143,11 +231,19 @@ class TitanBrain:
     ===============
     Central intelligence for trading decisions.
     Parameters evolve through Darwinian selection.
+
+    PROFESSIONAL UPGRADE:
+    - Dynamic Risk Engine for ATR-based stops
+    - Narrative Engine for human-readable explanations
+    - Price history tracking for volatility calculation
     """
 
-    def __init__(self, config: BrainConfig = None):
+    def __init__(self, config: BrainConfig = None, portfolio_value: float = 10000.0):
         self.config = config or BrainConfig()
         self._lock = threading.RLock()
+
+        # Portfolio context (for position sizing)
+        self.portfolio_value = portfolio_value
 
         # State
         self.is_active = True
@@ -159,6 +255,15 @@ class TitanBrain:
         self.signal_history: deque = deque(maxlen=1000)
         self.config_history: List[BrainConfig] = []
         self.evolution_count = 0
+
+        # === PROFESSIONAL UPGRADE: Price History for ATR ===
+        # Track price history per asset for ATR calculation
+        self.price_history: Dict[str, deque] = {}
+        self.price_history_length = 50  # Keep last 50 prices for ATR
+
+        # === PROFESSIONAL UPGRADE: Risk & Narrative Engines ===
+        self.risk_engine = get_risk_engine()
+        self.narrative_engine = get_narrative_engine()
 
         # Callbacks
         self.on_signal: Optional[Callable[[TradingSignal], None]] = None
@@ -173,7 +278,7 @@ class TitanBrain:
             'last_signal_time': None
         }
 
-        logger.info("🧠 TitanBrain initialized with dynamic config")
+        logger.info("🧠 TitanBrain initialized with PROFESSIONAL risk & narrative engines")
 
     async def update_config(self, new_config: BrainConfig):
         """
@@ -240,10 +345,26 @@ class TitanBrain:
         )
         self.update_config_sync(new_config)
 
+    def _update_price_history(self, asset: str, price: float):
+        """Track price history for ATR calculation"""
+        if asset not in self.price_history:
+            self.price_history[asset] = deque(maxlen=self.price_history_length)
+        self.price_history[asset].append(price)
+
+    def _get_price_history(self, asset: str) -> List[float]:
+        """Get price history for an asset"""
+        if asset in self.price_history:
+            return list(self.price_history[asset])
+        return []
+
     def process_tick(self, tick: Dict) -> TradingSignal:
         """
         Process market tick and generate trading signal.
         This is the main decision loop.
+
+        PROFESSIONAL UPGRADE:
+        - Uses ATR-based dynamic risk (stops breathe with volatility)
+        - Generates plain English narrative (explains the trade)
         """
         with self._lock:
             config = self.config
@@ -256,6 +377,10 @@ class TitanBrain:
             viral_k = tick.get('viral_k', 1.0)
             cvd = tick.get('cvd', 0)
             phase = tick.get('phase', 'stable')
+
+            # === UPDATE PRICE HISTORY FOR ATR ===
+            self._update_price_history(asset, price)
+            prices = self._get_price_history(asset)
 
             # =================================
             # THREE-PILLAR CONVERGENCE CHECK
@@ -344,22 +469,81 @@ class TitanBrain:
                 confidence = 0.5
 
             # =================================
-            # POSITION SIZING
+            # PROFESSIONAL: DYNAMIC RISK CALCULATION
             # =================================
+            # Replace naive fixed percentages with ATR-based stops
 
-            if signal_type in [SignalType.STRONG_BUY, SignalType.BUY]:
-                position_size = min(
-                    config.position_size_base + (conviction * config.position_size_per_conviction),
-                    config.max_position_size
+            direction = "LONG" if signal_type in [SignalType.STRONG_BUY, SignalType.BUY] else "SHORT"
+
+            # Calculate dynamic risk parameters
+            if len(prices) >= 5 and signal_type not in [SignalType.HOLD]:
+                risk_calc = self.risk_engine.calculate_dynamic_risk(
+                    entry_price=price,
+                    direction=direction,
+                    price_history=prices,
+                    portfolio_value=self.portfolio_value,
+                    signal_confidence=confidence
                 )
-            else:
-                position_size = 0
 
-            stop_loss = price * (1 - config.stop_loss_pct)
-            take_profit = price * (1 + config.take_profit_pct)
+                stop_loss = risk_calc.stop_loss
+                take_profit = risk_calc.take_profit
+                position_size = risk_calc.recommended_size_pct
+                atr = risk_calc.atr
+                atr_pct = risk_calc.atr_pct
+                volatility_regime = risk_calc.volatility_regime.value
+                risk_reward_ratio = risk_calc.risk_reward_ratio
+                trade_quality = risk_calc.trade_quality
+                quality_reason = risk_calc.quality_reason
+                max_loss_amount = risk_calc.max_loss_amount
+                potential_profit = risk_calc.potential_profit
+            else:
+                # Fallback to fixed percentages if not enough price history
+                if signal_type in [SignalType.STRONG_BUY, SignalType.BUY]:
+                    position_size = min(
+                        config.position_size_base + (conviction * config.position_size_per_conviction),
+                        config.max_position_size
+                    )
+                else:
+                    position_size = 0
+
+                stop_loss = price * (1 - config.stop_loss_pct)
+                take_profit = price * (1 + config.take_profit_pct)
+                atr = price * 0.02  # Default 2%
+                atr_pct = 0.02
+                volatility_regime = "normal"
+                risk_reward_ratio = 2.0
+                trade_quality = "B"
+                quality_reason = "Insufficient price history for ATR"
+                max_loss_amount = self.portfolio_value * position_size * config.stop_loss_pct
+                potential_profit = self.portfolio_value * position_size * config.take_profit_pct
 
             # =================================
-            # CREATE SIGNAL
+            # PROFESSIONAL: NARRATIVE GENERATION
+            # =================================
+            # Explain the trade in plain English
+
+            narrative = self.narrative_engine.generate_narrative(
+                signal_type=signal_type.value,
+                confidence=confidence,
+                conviction=conviction,
+                asset=asset,
+                price=price,
+                entropy=entropy,
+                hurst=hurst,
+                viral_k=viral_k,
+                cvd=cvd,
+                phase=phase,
+                bio_check=bio_check,
+                physics_check=physics_check,
+                micro_check=micro_check,
+                cvd_check=cvd_check,
+                stop_loss=stop_loss,
+                take_profit=take_profit,
+                atr_pct=atr_pct
+            )
+
+            # =================================
+            # CREATE SIGNAL (FULLY ENRICHED)
             # =================================
 
             signal = TradingSignal(
@@ -378,9 +562,30 @@ class TitanBrain:
                 viral_k=viral_k,
                 cvd=cvd,
                 market_phase=phase,
+                # Dynamic risk parameters
                 position_size=position_size,
                 stop_loss=stop_loss,
-                take_profit=take_profit
+                take_profit=take_profit,
+                atr=atr,
+                atr_pct=atr_pct,
+                volatility_regime=volatility_regime,
+                risk_reward_ratio=risk_reward_ratio,
+                trade_quality=trade_quality,
+                quality_reason=quality_reason,
+                max_loss_amount=max_loss_amount,
+                potential_profit=potential_profit,
+                # Narrative
+                headline=narrative.headline,
+                story=narrative.story,
+                narrative_type=narrative.narrative_type.value,
+                bio_explanation=narrative.bio_explanation,
+                physics_explanation=narrative.physics_explanation,
+                micro_explanation=narrative.micro_explanation,
+                conviction_level=narrative.conviction_level,
+                conviction_reason=narrative.conviction_reason,
+                risk_warning=narrative.risk_warning,
+                invalidation=narrative.invalidation,
+                time_horizon=narrative.time_horizon
             )
 
             # Update stats
@@ -491,22 +696,82 @@ class EvolvingBrain(TitanBrain):
 
 
 if __name__ == "__main__":
-    # Test TitanBrain
+    # Test TitanBrain with Professional Output
     logging.basicConfig(level=logging.INFO)
 
-    brain = TitanBrain()
+    print("\n" + "="*80)
+    print("  TITAN BRAIN - PROFESSIONAL MODE TEST")
+    print("  Dynamic Risk Engine + Narrative Engine")
+    print("="*80 + "\n")
 
-    # Simulate some ticks
+    # Initialize with $10,000 portfolio
+    brain = TitanBrain(portfolio_value=10000.0)
+
+    # Simulate BTC price history (for ATR calculation)
+    # First, warm up with realistic prices around $95,000
+    import random
+    base_price = 95000
+    warmup_prices = [base_price]
+    for i in range(20):
+        change = random.gauss(0, 0.015) * warmup_prices[-1]
+        warmup_prices.append(warmup_prices[-1] + change)
+
+    # Warm up price history
+    for p in warmup_prices:
+        brain._update_price_history('BTC/USDT', p)
+
+    # Simulate real market scenarios
     test_ticks = [
-        {'price': 100, 'entropy': 2.3, 'hurst': 0.65, 'viral_k': 1.3, 'cvd': 150, 'phase': 'accumulation'},
-        {'price': 101, 'entropy': 2.1, 'hurst': 0.68, 'viral_k': 1.4, 'cvd': 200, 'phase': 'recovery'},
-        {'price': 99, 'entropy': 3.5, 'hurst': 0.45, 'viral_k': 0.8, 'cvd': -100, 'phase': 'crash'},
-        {'price': 98, 'entropy': 2.8, 'hurst': 0.55, 'viral_k': 1.1, 'cvd': 50, 'phase': 'stable'},
+        {
+            'asset': 'BTC/USDT',
+            'price': 95200,
+            'entropy': 2.2,
+            'hurst': 0.68,
+            'viral_k': 1.35,
+            'cvd': 180,
+            'phase': 'recovery'
+        },
+        {
+            'asset': 'BTC/USDT',
+            'price': 95800,
+            'entropy': 2.1,
+            'hurst': 0.72,
+            'viral_k': 1.45,
+            'cvd': 250,
+            'phase': 'accumulation'
+        },
+        {
+            'asset': 'BTC/USDT',
+            'price': 94500,
+            'entropy': 3.2,
+            'hurst': 0.42,
+            'viral_k': 0.75,
+            'cvd': -180,
+            'phase': 'crash'
+        },
     ]
 
-    for tick in test_ticks:
-        signal = brain.process_tick(tick)
-        print(f"Phase: {tick['phase']:12} -> Signal: {signal.signal_type.value:12} "
-              f"(Confidence: {signal.confidence:.2f}, Conviction: {signal.conviction:.2f})")
+    for i, tick in enumerate(test_ticks, 1):
+        print(f"\n{'─'*80}")
+        print(f"  TICK #{i}: {tick['phase'].upper()} PHASE")
+        print(f"{'─'*80}")
 
-    print(f"\nStats: {brain.get_stats()}")
+        signal = brain.process_tick(tick)
+
+        # Show the professional output for non-HOLD signals
+        if signal.signal_type.value != "HOLD":
+            print(signal.format_professional_output())
+        else:
+            print(f"\n  Signal: {signal.signal_type.value}")
+            print(f"  Headline: {signal.headline}")
+            print(f"  Story: {signal.story[:150]}...")
+
+    print(f"\n{'='*80}")
+    print("  SESSION STATS")
+    print(f"{'='*80}")
+    stats = brain.get_stats()
+    print(f"  Signals Generated: {stats['signals_generated']}")
+    print(f"  Buy Signals: {stats['buy_signals']}")
+    print(f"  Sell Signals: {stats['sell_signals']}")
+    print(f"  Evolution Count: {stats['evolution_count']}")
+    print(f"{'='*80}\n")
