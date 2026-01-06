@@ -11,6 +11,11 @@ Features:
 - CVD (Cumulative Volume Delta) simulation with whale traps
 - Entropy and Hurst exponent modeling
 
+PAN-SENSORY INTEGRATION:
+- Prediction Oracle: Simulated Polymarket odds
+- Mempool Scanner: Simulated pending whale transactions
+- On-Chain Tracker: Simulated smart money flow
+
 This allows demonstration of "God Mode" capabilities immediately.
 """
 import asyncio
@@ -32,6 +37,16 @@ try:
 except ImportError:
     import logging
     logger = logging.getLogger(__name__)
+
+# Import Pan-Sensory modules
+try:
+    from ..sensory.prediction import PredictionOracle, get_prediction_oracle
+    from ..sensory.mempool import MempoolScanner, get_mempool_scanner
+    from ..sensory.onchain import OnChainTracker, get_onchain_tracker
+    SENSORY_AVAILABLE = True
+except ImportError:
+    SENSORY_AVAILABLE = False
+    logger.warning("Pan-Sensory modules not available - running in basic mode")
 
 
 class MarketPhase(Enum):
@@ -102,7 +117,19 @@ class Matrix:
         # Random seed for reproducibility (optional)
         self.rng = random.Random()
 
-        logger.info(f"Matrix initialized: base_price={base_price}, volatility={volatility}, crash_interval={crash_interval}s")
+        # Initialize Pan-Sensory modules
+        self.sensory_available = SENSORY_AVAILABLE
+        if SENSORY_AVAILABLE:
+            self.prediction_oracle = PredictionOracle()
+            self.mempool_scanner = MempoolScanner()
+            self.onchain_tracker = OnChainTracker()
+            logger.info("Pan-Sensory modules initialized: Prediction Oracle, Mempool Scanner, On-Chain Tracker")
+        else:
+            self.prediction_oracle = None
+            self.mempool_scanner = None
+            self.onchain_tracker = None
+
+        logger.info(f"Matrix initialized: base_price={base_price}, volatility={volatility}, crash_interval={crash_interval}s, sensory={SENSORY_AVAILABLE}")
 
     def _init_asset(self, asset: str) -> MarketState:
         """Initialize state for a new asset"""
@@ -473,7 +500,11 @@ class Matrix:
         # Micro check (whale trap detected)
         micro_check_passed = state.whale_trap
 
-        return {
+        # === PAN-SENSORY DATA GENERATION ===
+        # Generate simulated data from all sensory modules
+        sensory_data = self._generate_sensory_data(asset, state, bio_check_passed)
+
+        tick_data = {
             "asset": asset,
             "timestamp": datetime.now().isoformat(),
             "source": "matrix",
@@ -524,6 +555,192 @@ class Matrix:
                 "exit_signal": state.entropy > 0.9 or state.viral_k < 0.8 or state.distribution,
                 "signal_strength": sum([bio_check_passed, physics_check_passed, micro_check_passed]) / 3
             }
+        }
+
+        # Merge sensory data into tick
+        tick_data.update(sensory_data)
+
+        return tick_data
+
+    def _generate_sensory_data(
+        self,
+        asset: str,
+        state: MarketState,
+        bio_check_passed: bool
+    ) -> Dict[str, Any]:
+        """
+        Generate Pan-Sensory data from all sensory modules.
+
+        This creates simulated:
+        - Prediction Oracle: Polymarket odds and truth divergence
+        - Mempool Scanner: Pending whale transactions and pressure
+        - On-Chain Tracker: Smart money flow and insider signals
+
+        The data is correlated with market state to create realistic scenarios.
+        """
+        if not self.sensory_available:
+            # Return neutral sensory data if modules not available
+            return {
+                "sensory": {
+                    "available": False,
+                    "prediction_odds": 0.5,
+                    "narrative_signal": "neutral",
+                    "truth_divergence": 0.0,
+                    "mempool_pressure": "neutral",
+                    "pending_buy_usd": 0.0,
+                    "pending_sell_usd": 0.0,
+                    "precognition_signal": "neutral",
+                    "smart_money_signal": "idle",
+                    "smart_money_flow_usd": 0.0,
+                    "insider_confidence_boost": 0.0,
+                    "omni_stack_score": 0.0,
+                    "omni_stack_signal": "neutral"
+                }
+            }
+
+        # === PREDICTION ORACLE: Simulated Polymarket Odds ===
+        # Correlate prediction odds with market phase
+        base_odds = 0.5
+        if state.phase == MarketPhase.EUPHORIA:
+            base_odds = 0.7 + self.rng.uniform(0, 0.2)  # High odds during euphoria
+        elif state.phase == MarketPhase.CRASH:
+            base_odds = 0.2 + self.rng.uniform(0, 0.2)  # Low odds during crash
+        elif state.phase == MarketPhase.ACCUMULATION:
+            base_odds = 0.55 + self.rng.uniform(0, 0.15)  # Slightly bullish
+        elif state.phase == MarketPhase.RECOVERY:
+            base_odds = 0.65 + self.rng.uniform(0, 0.15)  # Bullish
+        else:
+            base_odds = 0.45 + self.rng.uniform(0, 0.15)  # Neutral
+
+        prediction_odds = round(min(0.95, max(0.05, base_odds)), 2)
+
+        # Simulate prediction tick to get narrative signal
+        pred_tick = self.prediction_oracle.simulate_tick(asset, state.viral_k)
+
+        # Calculate truth divergence (viral sentiment vs real money)
+        # High viral K + Low prediction = FAKE_PUMP
+        # High viral K + High prediction = VERIFIED_HYPE
+        truth_divergence = round(state.viral_k - prediction_odds, 2)
+
+        if state.viral_k > 1.2 and prediction_odds > 0.60:
+            narrative_signal = "VERIFIED_HYPE"
+        elif state.viral_k > 1.2 and prediction_odds < 0.40:
+            narrative_signal = "FAKE_PUMP"
+        elif state.viral_k < 0.8 and prediction_odds > 0.60:
+            narrative_signal = "SMART_MONEY_QUIET"
+        else:
+            narrative_signal = "NEUTRAL"
+
+        # === MEMPOOL SCANNER: Simulated Pending Whale Transactions ===
+        # Correlate mempool with market phase
+        mempool_tick = self.mempool_scanner.simulate_tick(asset)
+
+        # Override based on market phase for more dramatic signals
+        if state.phase == MarketPhase.ACCUMULATION:
+            pending_buy_usd = self.rng.uniform(5_000_000, 20_000_000)
+            pending_sell_usd = self.rng.uniform(500_000, 2_000_000)
+            mempool_pressure = "HEAVY_BUY"
+            precognition_signal = "PRECOGNITIVE_BUY"
+        elif state.phase == MarketPhase.CRASH:
+            pending_buy_usd = self.rng.uniform(500_000, 2_000_000)
+            pending_sell_usd = self.rng.uniform(10_000_000, 30_000_000)
+            mempool_pressure = "HEAVY_SELL"
+            precognition_signal = "PRECOGNITIVE_SELL"
+        elif state.whale_trap:
+            pending_buy_usd = self.rng.uniform(3_000_000, 10_000_000)
+            pending_sell_usd = self.rng.uniform(1_000_000, 3_000_000)
+            mempool_pressure = "BUY_PRESSURE"
+            precognition_signal = "LEAN_BUY"
+        else:
+            pending_buy_usd = self.rng.uniform(1_000_000, 5_000_000)
+            pending_sell_usd = self.rng.uniform(1_000_000, 5_000_000)
+            mempool_pressure = "NEUTRAL"
+            precognition_signal = "NEUTRAL"
+
+        # === ON-CHAIN TRACKER: Simulated Smart Money Flow ===
+        onchain_tick = self.onchain_tracker.simulate_tick(asset)
+
+        # Override based on market phase
+        if state.phase in [MarketPhase.ACCUMULATION, MarketPhase.RECOVERY]:
+            smart_money_flow_usd = self.rng.uniform(10_000_000, 50_000_000)
+            smart_money_signal = "ACCUMULATION"
+            insider_confidence_boost = 0.15
+        elif state.phase == MarketPhase.CRASH:
+            smart_money_flow_usd = -self.rng.uniform(5_000_000, 20_000_000)
+            smart_money_signal = "DISTRIBUTION"
+            insider_confidence_boost = -0.10
+        elif state.whale_trap:
+            smart_money_flow_usd = self.rng.uniform(5_000_000, 15_000_000)
+            smart_money_signal = "LIGHT_ACCUMULATION"
+            insider_confidence_boost = 0.08
+        else:
+            smart_money_flow_usd = self.rng.uniform(-2_000_000, 2_000_000)
+            smart_money_signal = "IDLE"
+            insider_confidence_boost = 0.0
+
+        # === OMNI-STACK CONSENSUS ===
+        # Combine all sensory signals into unified score
+        omni_score = 0.0
+
+        # Prediction contribution (0-0.33)
+        if narrative_signal == "VERIFIED_HYPE":
+            omni_score += 0.33
+        elif narrative_signal == "FAKE_PUMP":
+            omni_score -= 0.20
+
+        # Mempool contribution (0-0.33)
+        if precognition_signal in ["PRECOGNITIVE_BUY", "LEAN_BUY"]:
+            omni_score += 0.33
+        elif precognition_signal in ["PRECOGNITIVE_SELL", "LEAN_SELL"]:
+            omni_score -= 0.20
+
+        # On-chain contribution (0-0.34)
+        if smart_money_signal in ["ACCUMULATION", "HEAVY_ACCUMULATION"]:
+            omni_score += 0.34
+        elif smart_money_signal == "DISTRIBUTION":
+            omni_score -= 0.20
+
+        omni_score = round(max(-1.0, min(1.0, omni_score)), 2)
+
+        # Determine omni-stack signal
+        if omni_score > 0.6:
+            omni_stack_signal = "STRONG_CONVICTION"
+        elif omni_score > 0.3:
+            omni_stack_signal = "BULLISH"
+        elif omni_score < -0.3:
+            omni_stack_signal = "BEARISH"
+        elif narrative_signal == "FAKE_PUMP":
+            omni_stack_signal = "FAKE_PUMP_ALERT"
+        else:
+            omni_stack_signal = "NEUTRAL"
+
+        return {
+            "sensory": {
+                "available": True,
+                # Prediction Oracle data
+                "prediction_odds": prediction_odds,
+                "narrative_signal": narrative_signal,
+                "truth_divergence": truth_divergence,
+                # Mempool Scanner data
+                "mempool_pressure": mempool_pressure,
+                "pending_buy_usd": round(pending_buy_usd, 0),
+                "pending_sell_usd": round(pending_sell_usd, 0),
+                "precognition_signal": precognition_signal,
+                # On-Chain Tracker data
+                "smart_money_signal": smart_money_signal,
+                "smart_money_flow_usd": round(smart_money_flow_usd, 0),
+                "insider_confidence_boost": round(insider_confidence_boost, 2),
+                # Omni-Stack consensus
+                "omni_stack_score": omni_score,
+                "omni_stack_signal": omni_stack_signal
+            },
+            # Also expose top-level keys for easier access
+            "prediction_odds": prediction_odds,
+            "narrative_signal": narrative_signal,
+            "mempool_pressure": mempool_pressure,
+            "precognition_signal": precognition_signal,
+            "smart_money_signal": smart_money_signal,
+            "omni_stack_signal": omni_stack_signal
         }
 
     async def stream(
@@ -600,10 +817,11 @@ async def stream_market_data(
 
 # Test function
 async def test_matrix():
-    """Test the matrix with a few ticks"""
-    print("\n" + "=" * 60)
+    """Test the matrix with a few ticks including Pan-Sensory data"""
+    print("\n" + "=" * 80)
     print("THE MATRIX - Reality Simulation Engine Test")
-    print("=" * 60 + "\n")
+    print("With PAN-SENSORY DATA FABRIC (Layer 1)")
+    print("=" * 80 + "\n")
 
     m = Matrix(crash_interval=10)  # Crash every 10 seconds for testing
 
@@ -618,6 +836,14 @@ async def test_matrix():
         cvd_trend = tick["cvd_trend"]
         convergence = tick["convergence"]
 
+        # Pan-Sensory data
+        sensory = tick.get("sensory", {})
+        prediction_odds = sensory.get("prediction_odds", 0.5)
+        narrative = sensory.get("narrative_signal", "N/A")
+        mempool = sensory.get("mempool_pressure", "N/A")
+        smart_money = sensory.get("smart_money_signal", "N/A")
+        omni_signal = sensory.get("omni_stack_signal", "N/A")
+
         # Color-coded output
         if convergence["entry_signal"]:
             signal = "🔥 ENTRY SIGNAL"
@@ -631,13 +857,20 @@ async def test_matrix():
             ])
             signal = f"⏳ {checks}/3 checks"
 
-        print(f"[{tick_count:03d}] {phase:12s} | ${price:,.2f} | E:{entropy:.2f} K:{viral_k:.2f} CVD:{cvd_trend:12s} | {signal}")
+        # Basic line
+        print(f"[{tick_count:03d}] {phase:12s} | ${price:,.2f} | E:{entropy:.2f} K:{viral_k:.2f} | {signal}")
+
+        # Sensory line (every tick or on special signals)
+        if sensory.get("available", False):
+            omni_emoji = "🎯" if omni_signal in ["STRONG_CONVICTION", "BULLISH"] else "⚠️" if omni_signal == "FAKE_PUMP_ALERT" else "📊"
+            print(f"      └─ 🔮 Odds:{prediction_odds:.0%} | 📡 {narrative:15s} | 🐋 {mempool:12s} | 💰 {smart_money:12s} | {omni_emoji} {omni_signal}")
 
         if tick_count >= 40:
             break
 
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 80)
     print("Matrix test complete!")
+    print("Pan-Sensory Layer: Prediction Oracle + Mempool Scanner + On-Chain Tracker")
 
 
 if __name__ == "__main__":

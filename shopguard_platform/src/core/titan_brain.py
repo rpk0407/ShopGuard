@@ -14,6 +14,17 @@ Architecture:
 PROFESSIONAL UPGRADE (Phase 1 & 2):
     - Dynamic Risk Engine: ATR-based stops that breathe with volatility
     - Narrative Engine: Plain English explanations like a senior trader
+
+PAN-SENSORY LAYER (Layer 1):
+    - Prediction Oracle: Truth from prediction markets (Polymarket)
+    - Mempool Scanner: Pre-cognition from pending transactions
+    - On-Chain Tracker: Insight from smart money wallets
+
+THE OMNI-STACK LOGIC:
+    - VERIFIED_HYPE: High Viral K + High Prediction Odds = Go
+    - FAKE_PUMP: High Viral K + Low Prediction Odds = Run
+    - PRECOGNITIVE_SNIPE: Whale trap + High mempool pressure = Early entry
+    - INSIDER_ACCUMULATION: Smart money + Low entropy = Max conviction
 """
 
 import time
@@ -27,6 +38,15 @@ from collections import deque
 # Professional-grade risk and narrative engines
 from .risk_math import DynamicRiskEngine, RiskCalculation, get_risk_engine
 from .analyst import NarrativeEngine, TradeNarrative, get_narrative_engine
+
+# Pan-Sensory Layer - Extended Perception
+try:
+    from ..sensory.prediction import PredictionOracle, get_prediction_oracle, NarrativeSignal
+    from ..sensory.mempool import MempoolScanner, get_mempool_scanner, MempoolPressure
+    from ..sensory.onchain import OnChainTracker, get_onchain_tracker, SmartMoneySignal
+    SENSORY_AVAILABLE = True
+except ImportError:
+    SENSORY_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +159,27 @@ class TradingSignal:
     invalidation: str = ""
     time_horizon: str = ""
 
+    # === PAN-SENSORY LAYER: Extended Perception ===
+    # Prediction Oracle (Truth)
+    prediction_odds: float = 0.5
+    narrative_signal: str = "neutral"        # verified_hype, fake_pump, etc.
+    truth_divergence: float = 0.0
+
+    # Mempool Scanner (Pre-Cognition)
+    mempool_pressure: str = "neutral"
+    pending_buy_usd: float = 0.0
+    pending_sell_usd: float = 0.0
+    precognition_signal: str = "neutral"
+
+    # On-Chain Tracker (Insight)
+    smart_money_signal: str = "idle"
+    smart_money_flow_usd: float = 0.0
+    insider_confidence_boost: float = 0.0
+
+    # Omni-Stack Composite
+    omni_stack_score: float = 0.0            # -1 to +1
+    omni_stack_signal: str = "neutral"       # verified_hype, fake_pump, precognitive_snipe, insider_accumulation
+
     def to_dict(self) -> Dict:
         return {
             'signal': self.signal_type.value,
@@ -187,6 +228,29 @@ class TradingSignal:
                 'risk_warning': self.risk_warning,
                 'invalidation': self.invalidation,
                 'time_horizon': self.time_horizon
+            },
+            # Pan-Sensory Layer
+            'sensory': {
+                'prediction': {
+                    'odds': round(self.prediction_odds, 4),
+                    'narrative_signal': self.narrative_signal,
+                    'truth_divergence': round(self.truth_divergence, 4)
+                },
+                'mempool': {
+                    'pressure': self.mempool_pressure,
+                    'pending_buy_usd': round(self.pending_buy_usd, 2),
+                    'pending_sell_usd': round(self.pending_sell_usd, 2),
+                    'precognition_signal': self.precognition_signal
+                },
+                'onchain': {
+                    'smart_money_signal': self.smart_money_signal,
+                    'smart_money_flow_usd': round(self.smart_money_flow_usd, 2),
+                    'insider_boost': round(self.insider_confidence_boost, 4)
+                },
+                'omni_stack': {
+                    'score': round(self.omni_stack_score, 4),
+                    'signal': self.omni_stack_signal
+                }
             }
         }
 
@@ -236,6 +300,11 @@ class TitanBrain:
     - Dynamic Risk Engine for ATR-based stops
     - Narrative Engine for human-readable explanations
     - Price history tracking for volatility calculation
+
+    PAN-SENSORY LAYER:
+    - Prediction Oracle for truth vs hype analysis
+    - Mempool Scanner for pre-cognition
+    - On-Chain Tracker for smart money insight
     """
 
     def __init__(self, config: BrainConfig = None, portfolio_value: float = 10000.0):
@@ -265,6 +334,19 @@ class TitanBrain:
         self.risk_engine = get_risk_engine()
         self.narrative_engine = get_narrative_engine()
 
+        # === PAN-SENSORY LAYER: Extended Perception ===
+        self.sensory_enabled = SENSORY_AVAILABLE
+        if self.sensory_enabled:
+            self.prediction_oracle = get_prediction_oracle()
+            self.mempool_scanner = get_mempool_scanner()
+            self.onchain_tracker = get_onchain_tracker()
+            logger.info("🔮 Pan-Sensory Layer ACTIVE: Prediction, Mempool, On-Chain")
+        else:
+            self.prediction_oracle = None
+            self.mempool_scanner = None
+            self.onchain_tracker = None
+            logger.warning("⚠️ Pan-Sensory Layer UNAVAILABLE: Running without extended perception")
+
         # Callbacks
         self.on_signal: Optional[Callable[[TradingSignal], None]] = None
         self.on_config_update: Optional[Callable[[BrainConfig], None]] = None
@@ -275,7 +357,13 @@ class TitanBrain:
             'buy_signals': 0,
             'sell_signals': 0,
             'config_updates': 0,
-            'last_signal_time': None
+            'last_signal_time': None,
+            'omni_stack_signals': {
+                'verified_hype': 0,
+                'fake_pump': 0,
+                'precognitive_snipe': 0,
+                'insider_accumulation': 0
+            }
         }
 
         logger.info("🧠 TitanBrain initialized with PROFESSIONAL risk & narrative engines")
@@ -469,6 +557,102 @@ class TitanBrain:
                 confidence = 0.5
 
             # =================================
+            # PAN-SENSORY LAYER: OMNI-STACK LOGIC
+            # =================================
+            # Integrate prediction, mempool, and on-chain data
+
+            # Initialize sensory defaults
+            prediction_odds = 0.5
+            narrative_signal = "neutral"
+            truth_divergence = 0.0
+            mempool_pressure = "neutral"
+            pending_buy_usd = 0.0
+            pending_sell_usd = 0.0
+            precognition_signal = "neutral"
+            smart_money_signal = "idle"
+            smart_money_flow_usd = 0.0
+            insider_confidence_boost = 0.0
+            omni_stack_score = 0.0
+            omni_stack_signal = "neutral"
+
+            if self.sensory_enabled:
+                # --- PREDICTION ORACLE: Truth vs Hype ---
+                truth_analysis = self.prediction_oracle.analyze_truth_divergence(
+                    asset=asset,
+                    viral_k=viral_k,
+                    market_phase=phase
+                )
+                prediction_odds = truth_analysis.prediction_odds
+                narrative_signal = truth_analysis.signal.value
+                truth_divergence = truth_analysis.divergence_score
+
+                # --- MEMPOOL SCANNER: Pre-Cognition ---
+                mempool_snapshot = self.mempool_scanner.get_snapshot(asset)
+                if mempool_snapshot:
+                    mempool_pressure = mempool_snapshot.pressure.value
+                    pending_buy_usd = mempool_snapshot.pending_buy_usd
+                    pending_sell_usd = mempool_snapshot.pending_sell_usd
+                    precognition_signal = mempool_snapshot.precognition_signal
+
+                # --- ON-CHAIN TRACKER: Smart Money Insight ---
+                onchain_snapshot = self.onchain_tracker.get_snapshot(asset)
+                if onchain_snapshot:
+                    smart_money_signal = onchain_snapshot.signal.value
+                    smart_money_flow_usd = onchain_snapshot.net_flow_usd
+
+                # Calculate insider confidence boost
+                insider_analysis = self.onchain_tracker.calculate_insider_confidence(
+                    asset=asset,
+                    entropy=entropy / 2.5,  # Normalize entropy to 0-1 scale
+                    base_confidence=confidence
+                )
+                insider_confidence_boost = insider_analysis.boosted_confidence - confidence
+
+                # =================================
+                # THE OMNI-STACK CONSENSUS LOGIC
+                # =================================
+
+                # VERIFIED_HYPE: High Viral K + High Prediction Odds = Trust the hype
+                if viral_k > 1.2 and prediction_odds > 0.60:
+                    omni_stack_signal = "verified_hype"
+                    omni_stack_score = 0.3  # Boost
+                    if signal_type in [SignalType.BUY, SignalType.STRONG_BUY]:
+                        confidence = min(0.95, confidence + 0.1)
+                        self.stats['omni_stack_signals']['verified_hype'] += 1
+
+                # FAKE_PUMP: High Viral K + Low Prediction Odds = Don't trust hype
+                elif viral_k > 1.2 and prediction_odds < 0.40:
+                    omni_stack_signal = "fake_pump"
+                    omni_stack_score = -0.5  # Major penalty
+                    if signal_type in [SignalType.BUY, SignalType.STRONG_BUY]:
+                        signal_type = SignalType.HOLD  # Block the trade!
+                        confidence = 0.3
+                        self.stats['omni_stack_signals']['fake_pump'] += 1
+
+                # PRECOGNITIVE_SNIPE: Whale trap + High mempool buy pressure
+                if micro_check and precognition_signal in ['PRECOGNITIVE_BUY', 'LEAN_BUY']:
+                    omni_stack_signal = "precognitive_snipe"
+                    omni_stack_score += 0.2
+                    if signal_type == SignalType.BUY:
+                        signal_type = SignalType.STRONG_BUY  # Upgrade signal
+                        confidence = min(0.95, confidence + 0.15)
+                        self.stats['omni_stack_signals']['precognitive_snipe'] += 1
+
+                # INSIDER_ACCUMULATION: Smart money buying + Low entropy
+                if smart_money_signal in ['accumulation', 'heavy_accumulation'] and entropy < 2.3:
+                    omni_stack_signal = "insider_accumulation"
+                    omni_stack_score += 0.4
+                    # Apply insider confidence boost
+                    confidence = min(0.99, insider_analysis.boosted_confidence)
+                    self.stats['omni_stack_signals']['insider_accumulation'] += 1
+
+                # DANGER: Smart money exiting
+                if smart_money_signal in ['distribution', 'heavy_distribution']:
+                    omni_stack_score -= 0.3
+                    if signal_type in [SignalType.BUY, SignalType.STRONG_BUY]:
+                        confidence = max(0.3, confidence - 0.2)
+
+            # =================================
             # PROFESSIONAL: DYNAMIC RISK CALCULATION
             # =================================
             # Replace naive fixed percentages with ATR-based stops
@@ -585,7 +769,20 @@ class TitanBrain:
                 conviction_reason=narrative.conviction_reason,
                 risk_warning=narrative.risk_warning,
                 invalidation=narrative.invalidation,
-                time_horizon=narrative.time_horizon
+                time_horizon=narrative.time_horizon,
+                # Pan-Sensory Layer
+                prediction_odds=prediction_odds,
+                narrative_signal=narrative_signal,
+                truth_divergence=truth_divergence,
+                mempool_pressure=mempool_pressure,
+                pending_buy_usd=pending_buy_usd,
+                pending_sell_usd=pending_sell_usd,
+                precognition_signal=precognition_signal,
+                smart_money_signal=smart_money_signal,
+                smart_money_flow_usd=smart_money_flow_usd,
+                insider_confidence_boost=insider_confidence_boost,
+                omni_stack_score=omni_stack_score,
+                omni_stack_signal=omni_stack_signal
             )
 
             # Update stats
@@ -632,12 +829,19 @@ class TitanBrain:
             self.entry_price = 0.0
             self.peak_equity = 0.0
             self.signal_history.clear()
+            self.price_history.clear()
             self.stats = {
                 'signals_generated': 0,
                 'buy_signals': 0,
                 'sell_signals': 0,
                 'config_updates': self.stats.get('config_updates', 0),
-                'last_signal_time': None
+                'last_signal_time': None,
+                'omni_stack_signals': {
+                    'verified_hype': 0,
+                    'fake_pump': 0,
+                    'precognitive_snipe': 0,
+                    'insider_accumulation': 0
+                }
             }
             logger.info("🧠 TitanBrain reset")
 
