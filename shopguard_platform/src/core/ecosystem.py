@@ -2,14 +2,15 @@
 TITAN ECOSYSTEM - Unified Trading Organism
 ============================================
 The complete integrated system that combines all components
-into a self-evolving, self-healing trading organism.
+into a cohesive trading organism.
 
 Data Flow:
     MATRIX → RECEPTORS → TITAN BRAIN → RISK MANAGER → EXECUTOR → JOURNAL
-       ↑                      ↑              ↓
-       └──────────────────────┴──── DARWIN (evolving) ────→ ALERTS
+                              ↑              ↓
+                              └──────────────┴────→ ALERTS
 
-All components work together, communicating through the Alert System (Nervous System).
+NOTE: Removed Darwin evolution per TQO analysis (premature optimization).
+Focus on proving core 3-pillar convergence edge before adding complexity.
 """
 
 import time
@@ -37,7 +38,6 @@ class EcosystemState(Enum):
     HEALTHY = "healthy"       # All systems go
     DEGRADED = "degraded"     # Some issues
     CRITICAL = "critical"     # Major issues
-    EVOLVING = "evolving"     # Darwin running
     SHUTDOWN = "shutdown"     # Shutting down
 
 
@@ -50,11 +50,6 @@ class EcosystemConfig:
     # Trading
     max_concurrent_positions: int = 3
     max_position_pct: float = 0.25  # Max 25% per position
-
-    # Evolution
-    enable_evolution: bool = True
-    evolution_interval: int = 300  # Evolve every 5 minutes
-    min_ticks_for_evolution: int = 100
 
     # Risk
     daily_loss_limit_pct: float = 0.05  # 5% daily max loss
@@ -93,17 +88,18 @@ class TitanEcosystem:
     """
     THE TITAN ECOSYSTEM
     ===================
-    A unified, self-evolving trading organism.
+    A unified trading organism focused on 3-pillar convergence.
 
-    Components (Biological Metaphor):
-    - Nucleus (TitanBrain): Central decision-making
-    - DNA (Darwin): Evolutionary optimization
-    - Membrane (RiskManager): Protection layer
-    - Mitochondria (Executor): Energy/Execution
-    - Receptors (RegimeDetector): Market sensing
-    - Memory (Journal): Trade history & learning
-    - Nervous System (Alerts): Communication
-    - Environment (Matrix): Simulation layer
+    Components:
+    - TitanBrain: Central decision-making (3-pillar convergence)
+    - RiskManager: Protection layer (ATR-based stops)
+    - Executor: Order execution
+    - RegimeDetector: Market sensing
+    - Journal: Trade history & learning
+    - Alerts: Communication
+    - Matrix: Simulation layer
+
+    NOTE: Removed Darwin evolution per TQO analysis (prove edge first).
     """
 
     def __init__(
@@ -137,8 +133,7 @@ class TitanEcosystem:
         # The Memory (Trade History)
         self.journal = TradeJournal(initial_capital=self.config.initial_capital)
 
-        # The DNA (Evolution) - Loaded on demand
-        self.darwin = None
+        # Matrix simulator (for testing)
         self.matrix = None
 
         # ===================================
@@ -151,14 +146,13 @@ class TitanEcosystem:
         self.daily_pnl = 0.0
         self.daily_start_capital = self.config.initial_capital
 
-        # Tick history for evolution
+        # Tick history for analysis
         self.tick_history: List[Dict] = []
         self.max_tick_history = 1000
 
         # Threading
         self._running = False
         self._lock = threading.RLock()
-        self._evolution_thread = None
 
         # Wire up callbacks
         self._setup_callbacks()
@@ -494,70 +488,13 @@ class TitanEcosystem:
             self._close_position(position, position.current_price, "EMERGENCY")
 
     # =========================================
-    # EVOLUTION INTEGRATION
+    # MATRIX INTEGRATION
     # =========================================
-
-    def attach_darwin(self, darwin):
-        """Attach Darwin evolution engine"""
-        self.darwin = darwin
-
-        # Wire up evolution callback
-        def on_alpha_evolved(genome):
-            self.brain.update_from_genome(genome)
-            self.alerts.evolution_alert(
-                darwin.generation,
-                genome.fitness,
-                alpha_updated=True
-            )
-
-        darwin.on_alpha_evolved = on_alpha_evolved
-        logger.info("🧬 Darwin attached to ecosystem")
 
     def attach_matrix(self, matrix):
         """Attach Matrix simulation"""
         self.matrix = matrix
-        logger.info("🔮 Matrix attached to ecosystem")
-
-    def start_evolution(self):
-        """Start background evolution"""
-        if not self.darwin:
-            try:
-                from ..evolution.darwin import Darwin
-                self.darwin = Darwin()
-                self.attach_darwin(self.darwin)
-            except ImportError:
-                logger.warning("Darwin not available")
-                return
-
-        if self.matrix:
-            self.darwin.start_evolution(self.matrix)
-            self.state = EcosystemState.EVOLVING
-            self.alerts.emit(
-                EventType.GENERATION_COMPLETE,
-                "Evolution Started",
-                "Darwin evolution engine activated",
-                AlertLevel.INFO,
-                source="Darwin"
-            )
-
-    def stop_evolution(self):
-        """Stop background evolution"""
-        if self.darwin:
-            self.darwin.stop_evolution()
-            self.state = EcosystemState.HEALTHY
-
-    def run_generation(self) -> Dict:
-        """Run a single evolution generation"""
-        if not self.darwin:
-            return {'error': 'Darwin not attached'}
-
-        if len(self.tick_history) < 50:
-            return {'error': 'Not enough tick history for evolution'}
-
-        # Run generation with stored ticks
-        result = self.darwin.run_generation(self.tick_history)
-
-        return result
+        logger.info("Matrix attached to ecosystem")
 
     # =========================================
     # LIFECYCLE MANAGEMENT
@@ -595,9 +532,6 @@ class TitanEcosystem:
         """Stop the ecosystem gracefully"""
         with self._lock:
             self.state = EcosystemState.SHUTDOWN
-
-            # Stop evolution
-            self.stop_evolution()
 
             # Close all positions
             for position in list(self.positions.values()):
@@ -681,7 +615,6 @@ class TitanEcosystem:
                 'execution': self.executor.get_stats(),
                 'journal': self.journal.get_stats(),
                 'alerts': self.alerts.get_stats(),
-                'darwin': self.darwin.get_stats() if self.darwin else None,
                 'tick_history_size': len(self.tick_history)
             }
 

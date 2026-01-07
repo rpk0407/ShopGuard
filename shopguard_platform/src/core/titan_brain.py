@@ -1,52 +1,38 @@
 """
-TITAN BRAIN - Dynamic Trading Intelligence
-==========================================
+TITAN BRAIN - Core Trading Intelligence
+========================================
 The central decision-making unit that processes market data through
-the three-pillar convergence strategy. Parameters are DYNAMIC and
-can be hot-swapped by the Darwinian Engine.
+the THREE-PILLAR CONVERGENCE strategy:
 
-Architecture:
-    - Receives ticks from Matrix or live feeds
-    - Applies three-pillar convergence detection
-    - Parameters updated in real-time by Darwin
-    - Emits trading signals with confidence scores
+1. BIO-CHECK (Entropy): Market order/chaos level
+2. PHYSICS-CHECK (Hurst): Trend persistence
+3. MICRO-CHECK (Viral K + CVD): Order flow analysis
 
-PROFESSIONAL UPGRADE (Phase 1 & 2):
-    - Dynamic Risk Engine: ATR-based stops that breathe with volatility
-    - Narrative Engine: Plain English explanations like a senior trader
+PROFESSIONAL FEATURES:
+- Dynamic Risk Engine: ATR-based stops that breathe with volatility
+- Narrative Engine: Plain English explanations
 
-PAN-SENSORY LAYER (Layer 1):
-    - Prediction Oracle: Truth from prediction markets (Polymarket)
-    - Mempool Scanner: Pre-cognition from pending transactions
-    - On-Chain Tracker: Insight from smart money wallets
+Based on proven quantitative concepts:
+- Shannon Entropy for regime detection (academically validated)
+- Hurst Exponent for trend analysis
+- CVD for order flow analysis (legitimate microstructure concept)
+- ATR for dynamic risk management (industry standard)
 
-THE OMNI-STACK LOGIC:
-    - VERIFIED_HYPE: High Viral K + High Prediction Odds = Go
-    - FAKE_PUMP: High Viral K + Low Prediction Odds = Run
-    - PRECOGNITIVE_SNIPE: Whale trap + High mempool pressure = Early entry
-    - INSIDER_ACCUMULATION: Smart money + Low entropy = Max conviction
+NOTE: Removed premature components (Pan-Sensory, Omni-Stack) per TQO analysis.
+Focus on proving core edge before adding complexity.
 """
 
 import time
 import logging
 import threading
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Callable, Any
+from typing import Dict, List, Optional, Callable
 from enum import Enum
 from collections import deque
 
 # Professional-grade risk and narrative engines
 from .risk_math import DynamicRiskEngine, RiskCalculation, get_risk_engine
 from .analyst import NarrativeEngine, TradeNarrative, get_narrative_engine
-
-# Pan-Sensory Layer - Extended Perception
-try:
-    from ..sensory.prediction import PredictionOracle, get_prediction_oracle, NarrativeSignal
-    from ..sensory.mempool import MempoolScanner, get_mempool_scanner, MempoolPressure
-    from ..sensory.onchain import OnChainTracker, get_onchain_tracker, SmartMoneySignal
-    SENSORY_AVAILABLE = True
-except ImportError:
-    SENSORY_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -65,24 +51,28 @@ class SignalType(Enum):
 class BrainConfig:
     """
     Dynamic configuration for TitanBrain.
-    All parameters can be hot-swapped by Darwin.
+    All parameters validated and documented.
     """
     # Bio-Check: Entropy thresholds
-    entropy_threshold_low: float = 2.0    # Below = strong order
-    entropy_threshold_high: float = 2.5   # Below = moderate order
+    # Lower entropy = more ordered market = better for trading
+    entropy_threshold_low: float = 2.0    # Below = strong order (Crystal)
+    entropy_threshold_high: float = 2.5   # Below = moderate order (Liquid)
     entropy_weight: float = 1.0
 
     # Physics-Check: Hurst thresholds
+    # H > 0.5 = trending, H < 0.5 = mean-reverting
     hurst_threshold_low: float = 0.55     # Above = weak trend
     hurst_threshold_high: float = 0.65    # Above = strong trend
     hurst_weight: float = 1.0
 
     # Micro-Check: Viral K thresholds
+    # K > 1 = self-sustaining growth
     k_threshold_low: float = 1.1          # Above = weak viral
     k_threshold_high: float = 1.3         # Above = strong viral
     k_weight: float = 1.0
 
     # CVD thresholds
+    # Positive CVD = buying pressure, Negative = selling
     cvd_accumulation_threshold: float = 100
     cvd_distribution_threshold: float = -100
     cvd_weight: float = 0.8
@@ -96,21 +86,27 @@ class BrainConfig:
     position_size_per_conviction: float = 0.05
     max_position_size: float = 0.3
 
-    # Risk management
+    # Risk management (fallback - ATR-based used when possible)
     stop_loss_pct: float = 0.03           # 3% stop loss
     take_profit_pct: float = 0.06         # 6% take profit
-    trailing_stop_pct: float = 0.02       # 2% trailing stop
     max_drawdown_pct: float = 0.15        # 15% max drawdown
 
     # Meta
     version: int = 1
     last_updated: float = field(default_factory=time.time)
-    source: str = "default"               # "default", "darwin", "manual"
+    source: str = "default"               # "default", "manual"
 
 
 @dataclass
 class TradingSignal:
-    """Output signal from TitanBrain - Now with professional risk and narrative"""
+    """
+    Output signal from TitanBrain.
+
+    Contains everything needed to execute a trade:
+    - Signal direction and confidence
+    - Risk parameters (stop, target, size)
+    - Human-readable narrative
+    """
     signal_type: SignalType
     confidence: float                      # 0.0 - 1.0
     conviction: float                      # Raw conviction score
@@ -131,12 +127,10 @@ class TradingSignal:
     cvd: float
     market_phase: str
 
-    # === PROFESSIONAL UPGRADE: Dynamic Risk ===
+    # === DYNAMIC RISK ===
     position_size: float
     stop_loss: float
     take_profit: float
-
-    # ATR-based risk details
     atr: float = 0.0
     atr_pct: float = 0.0
     volatility_regime: str = "normal"
@@ -146,7 +140,7 @@ class TradingSignal:
     max_loss_amount: float = 0.0
     potential_profit: float = 0.0
 
-    # === PROFESSIONAL UPGRADE: Narrative ===
+    # === NARRATIVE ===
     headline: str = ""
     story: str = ""
     narrative_type: str = ""
@@ -159,32 +153,11 @@ class TradingSignal:
     invalidation: str = ""
     time_horizon: str = ""
 
-    # === PAN-SENSORY LAYER: Extended Perception ===
-    # Prediction Oracle (Truth)
-    prediction_odds: float = 0.5
-    narrative_signal: str = "neutral"        # verified_hype, fake_pump, etc.
-    truth_divergence: float = 0.0
-
-    # Mempool Scanner (Pre-Cognition)
-    mempool_pressure: str = "neutral"
-    pending_buy_usd: float = 0.0
-    pending_sell_usd: float = 0.0
-    precognition_signal: str = "neutral"
-
-    # On-Chain Tracker (Insight)
-    smart_money_signal: str = "idle"
-    smart_money_flow_usd: float = 0.0
-    insider_confidence_boost: float = 0.0
-
-    # Omni-Stack Composite
-    omni_stack_score: float = 0.0            # -1 to +1
-    omni_stack_signal: str = "neutral"       # verified_hype, fake_pump, precognitive_snipe, insider_accumulation
-
     def to_dict(self) -> Dict:
         return {
             'signal': self.signal_type.value,
-            'confidence': self.confidence,
-            'conviction': self.conviction,
+            'confidence': round(self.confidence, 3),
+            'conviction': round(self.conviction, 3),
             'asset': self.asset,
             'price': self.price,
             'timestamp': self.timestamp,
@@ -192,18 +165,18 @@ class TradingSignal:
                 'bio': self.bio_check,
                 'physics': self.physics_check,
                 'micro': self.micro_check,
-                'cvd': self.cvd_check
+                'cvd': self.cvd_check,
+                'aligned': sum([self.bio_check, self.physics_check, self.micro_check, self.cvd_check])
             },
             'metrics': {
-                'entropy': self.entropy,
-                'hurst': self.hurst,
-                'viral_k': self.viral_k,
-                'cvd': self.cvd
+                'entropy': round(self.entropy, 4),
+                'hurst': round(self.hurst, 4),
+                'viral_k': round(self.viral_k, 3),
+                'cvd': round(self.cvd, 2)
             },
             'phase': self.market_phase,
-            # Professional risk management
             'risk': {
-                'position_size': self.position_size,
+                'position_size': round(self.position_size, 3),
                 'stop_loss': round(self.stop_loss, 2),
                 'take_profit': round(self.take_profit, 2),
                 'atr': round(self.atr, 2),
@@ -211,52 +184,22 @@ class TradingSignal:
                 'volatility_regime': self.volatility_regime,
                 'risk_reward': self.risk_reward_ratio,
                 'trade_quality': self.trade_quality,
-                'quality_reason': self.quality_reason,
                 'max_loss': round(self.max_loss_amount, 2),
                 'potential_profit': round(self.potential_profit, 2)
             },
-            # Professional narrative
             'narrative': {
                 'headline': self.headline,
-                'story': self.story,
+                'story': self.story[:200] + '...' if len(self.story) > 200 else self.story,
                 'type': self.narrative_type,
-                'bio': self.bio_explanation,
-                'physics': self.physics_explanation,
-                'micro': self.micro_explanation,
-                'conviction': self.conviction_level,
-                'conviction_reason': self.conviction_reason,
-                'risk_warning': self.risk_warning,
-                'invalidation': self.invalidation,
-                'time_horizon': self.time_horizon
-            },
-            # Pan-Sensory Layer
-            'sensory': {
-                'prediction': {
-                    'odds': round(self.prediction_odds, 4),
-                    'narrative_signal': self.narrative_signal,
-                    'truth_divergence': round(self.truth_divergence, 4)
-                },
-                'mempool': {
-                    'pressure': self.mempool_pressure,
-                    'pending_buy_usd': round(self.pending_buy_usd, 2),
-                    'pending_sell_usd': round(self.pending_sell_usd, 2),
-                    'precognition_signal': self.precognition_signal
-                },
-                'onchain': {
-                    'smart_money_signal': self.smart_money_signal,
-                    'smart_money_flow_usd': round(self.smart_money_flow_usd, 2),
-                    'insider_boost': round(self.insider_confidence_boost, 4)
-                },
-                'omni_stack': {
-                    'score': round(self.omni_stack_score, 4),
-                    'signal': self.omni_stack_signal
-                }
             }
         }
 
     def format_professional_output(self) -> str:
-        """Format signal as professional trade ticket with narrative"""
+        """Format signal as professional trade ticket"""
         pillars_aligned = sum([self.bio_check, self.physics_check, self.micro_check, self.cvd_check])
+
+        stop_pct = abs(self.price - self.stop_loss) / self.price * 100 if self.price > 0 else 0
+        target_pct = abs(self.take_profit - self.price) / self.price * 100 if self.price > 0 else 0
 
         return f"""
 ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -266,22 +209,19 @@ class TradingSignal:
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║                                                                              ║
 ║  {self.story[:76]:<76}  ║
-║  {self.story[76:152] if len(self.story) > 76 else '':<76}  ║
-║  {self.story[152:228] if len(self.story) > 152 else '':<76}  ║
 ║                                                                              ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║  TRADE TICKET                                                                ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║  Entry:       ${self.price:>12,.2f}                                              ║
-║  Stop Loss:   ${self.stop_loss:>12,.2f}  ({(abs(self.price - self.stop_loss) / self.price * 100):>5.2f}% risk)                     ║
-║  Take Profit: ${self.take_profit:>12,.2f}  ({(abs(self.take_profit - self.price) / self.price * 100):>5.2f}% reward)                   ║
+║  Stop Loss:   ${self.stop_loss:>12,.2f}  ({stop_pct:>5.2f}% risk)                     ║
+║  Take Profit: ${self.take_profit:>12,.2f}  ({target_pct:>5.2f}% reward)                   ║
 ║  Risk/Reward: {self.risk_reward_ratio:>5.1f}:1                                                       ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║  Position:    {self.position_size * 100:>5.1f}% of portfolio                                          ║
 ║  Max Loss:    ${self.max_loss_amount:>8,.2f}  |  Potential: +${self.potential_profit:>8,.2f}                ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║  Volatility:  {self.volatility_regime:<12}  |  ATR: ${self.atr:>8,.2f} ({self.atr_pct * 100:.2f}%)                ║
-║  Time Frame:  {self.time_horizon:<50}     ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║  ⚠️  {self.risk_warning[:71]:<71}  ║
 ║  ❌ {self.invalidation[:72]:<72}  ║
@@ -291,27 +231,25 @@ class TradingSignal:
 
 class TitanBrain:
     """
-    THE TITAN BRAIN
-    ===============
-    Central intelligence for trading decisions.
-    Parameters evolve through Darwinian selection.
+    THE TITAN BRAIN - Core Trading Intelligence
+    ===========================================
 
-    PROFESSIONAL UPGRADE:
-    - Dynamic Risk Engine for ATR-based stops
-    - Narrative Engine for human-readable explanations
-    - Price history tracking for volatility calculation
+    Implements THREE-PILLAR CONVERGENCE strategy:
+    - Only trades when multiple independent signals align
+    - Uses ATR-based dynamic risk management
+    - Generates human-readable trade narratives
 
-    PAN-SENSORY LAYER:
-    - Prediction Oracle for truth vs hype analysis
-    - Mempool Scanner for pre-cognition
-    - On-Chain Tracker for smart money insight
+    Based on proven concepts:
+    - Entropy/Hurst: Information theory (academically validated)
+    - CVD: Order flow analysis (used by professional desks)
+    - ATR: Industry standard risk management
     """
 
     def __init__(self, config: BrainConfig = None, portfolio_value: float = 10000.0):
         self.config = config or BrainConfig()
         self._lock = threading.RLock()
 
-        # Portfolio context (for position sizing)
+        # Portfolio context
         self.portfolio_value = portfolio_value
 
         # State
@@ -322,116 +260,28 @@ class TitanBrain:
 
         # History
         self.signal_history: deque = deque(maxlen=1000)
-        self.config_history: List[BrainConfig] = []
-        self.evolution_count = 0
 
-        # === PROFESSIONAL UPGRADE: Price History for ATR ===
-        # Track price history per asset for ATR calculation
+        # Price history for ATR calculation
         self.price_history: Dict[str, deque] = {}
-        self.price_history_length = 50  # Keep last 50 prices for ATR
+        self.price_history_length = 50
 
-        # === PROFESSIONAL UPGRADE: Risk & Narrative Engines ===
+        # Risk & Narrative Engines
         self.risk_engine = get_risk_engine()
         self.narrative_engine = get_narrative_engine()
 
-        # === PAN-SENSORY LAYER: Extended Perception ===
-        self.sensory_enabled = SENSORY_AVAILABLE
-        if self.sensory_enabled:
-            self.prediction_oracle = get_prediction_oracle()
-            self.mempool_scanner = get_mempool_scanner()
-            self.onchain_tracker = get_onchain_tracker()
-            logger.info("🔮 Pan-Sensory Layer ACTIVE: Prediction, Mempool, On-Chain")
-        else:
-            self.prediction_oracle = None
-            self.mempool_scanner = None
-            self.onchain_tracker = None
-            logger.warning("⚠️ Pan-Sensory Layer UNAVAILABLE: Running without extended perception")
-
         # Callbacks
         self.on_signal: Optional[Callable[[TradingSignal], None]] = None
-        self.on_config_update: Optional[Callable[[BrainConfig], None]] = None
 
         # Stats
         self.stats = {
             'signals_generated': 0,
             'buy_signals': 0,
             'sell_signals': 0,
-            'config_updates': 0,
+            'hold_signals': 0,
             'last_signal_time': None,
-            'omni_stack_signals': {
-                'verified_hype': 0,
-                'fake_pump': 0,
-                'precognitive_snipe': 0,
-                'insider_accumulation': 0
-            }
         }
 
-        logger.info("🧠 TitanBrain initialized with PROFESSIONAL risk & narrative engines")
-
-    async def update_config(self, new_config: BrainConfig):
-        """
-        HOT-SWAP configuration from Darwin.
-        This is the evolution entry point.
-        """
-        with self._lock:
-            old_config = self.config
-            self.config = new_config
-            self.config.last_updated = time.time()
-            self.config.source = "darwin"
-            self.config.version = old_config.version + 1
-
-            self.config_history.append(old_config)
-            self.evolution_count += 1
-            self.stats['config_updates'] += 1
-
-            logger.info(
-                f"🧬 BRAIN EVOLVED (v{self.config.version}): "
-                f"K-Threshold={self.config.k_threshold_high:.3f}, "
-                f"Entropy-Threshold={self.config.entropy_threshold_high:.3f}, "
-                f"Hurst-Threshold={self.config.hurst_threshold_high:.3f}"
-            )
-
-            if self.on_config_update:
-                self.on_config_update(self.config)
-
-    def update_config_sync(self, new_config: BrainConfig):
-        """Synchronous version of update_config"""
-        with self._lock:
-            old_config = self.config
-            self.config = new_config
-            self.config.last_updated = time.time()
-            self.config.source = "darwin"
-            self.config.version = old_config.version + 1
-
-            self.config_history.append(old_config)
-            self.evolution_count += 1
-            self.stats['config_updates'] += 1
-
-            logger.info(
-                f"🧬 BRAIN EVOLVED (v{self.config.version}): "
-                f"K={self.config.k_threshold_high:.3f}, "
-                f"Entropy={self.config.entropy_threshold_high:.3f}, "
-                f"Hurst={self.config.hurst_threshold_high:.3f}"
-            )
-
-    def update_from_genome(self, genome: 'Genome'):
-        """Update config directly from a Darwin Genome"""
-        new_config = BrainConfig(
-            entropy_threshold_high=genome.entropy_threshold,
-            entropy_weight=genome.entropy_weight,
-            hurst_threshold_high=genome.hurst_threshold,
-            hurst_weight=genome.hurst_weight,
-            k_threshold_high=genome.k_threshold,
-            k_weight=genome.k_weight,
-            cvd_weight=genome.cvd_sensitivity,
-            position_size_base=genome.position_size_base,
-            position_size_per_conviction=genome.position_size_conviction,
-            stop_loss_pct=genome.stop_loss_atr_mult * 0.01,
-            take_profit_pct=genome.take_profit_atr_mult * 0.01,
-            max_drawdown_pct=genome.max_drawdown_pct,
-            source="darwin"
-        )
-        self.update_config_sync(new_config)
+        logger.info("🧠 TitanBrain initialized: 3-Pillar Convergence + ATR Risk")
 
     def _update_price_history(self, asset: str, price: float):
         """Track price history for ATR calculation"""
@@ -448,11 +298,13 @@ class TitanBrain:
     def process_tick(self, tick: Dict) -> TradingSignal:
         """
         Process market tick and generate trading signal.
-        This is the main decision loop.
 
-        PROFESSIONAL UPGRADE:
-        - Uses ATR-based dynamic risk (stops breathe with volatility)
-        - Generates plain English narrative (explains the trade)
+        THREE-PILLAR CONVERGENCE:
+        1. Bio-Check: Is entropy low enough? (ordered market)
+        2. Physics-Check: Is Hurst high enough? (trending)
+        3. Micro-Check: Is Viral K high enough? (momentum)
+
+        Only trades when pillars align.
         """
         with self._lock:
             config = self.config
@@ -466,7 +318,7 @@ class TitanBrain:
             cvd = tick.get('cvd', 0)
             phase = tick.get('phase', 'stable')
 
-            # === UPDATE PRICE HISTORY FOR ATR ===
+            # Update price history for ATR
             self._update_price_history(asset, price)
             prices = self._get_price_history(asset)
 
@@ -475,33 +327,24 @@ class TitanBrain:
             # =================================
 
             # Pillar 1: Bio-Check (Entropy)
+            # Low entropy = ordered market = tradeable
             bio_check = entropy < config.entropy_threshold_high
             bio_strong = entropy < config.entropy_threshold_low
-            bio_score = 0
-            if bio_strong:
-                bio_score = config.entropy_weight
-            elif bio_check:
-                bio_score = config.entropy_weight * 0.5
+            bio_score = config.entropy_weight if bio_strong else (config.entropy_weight * 0.5 if bio_check else 0)
 
             # Pillar 2: Physics-Check (Hurst)
+            # High Hurst = trending = follow the trend
             physics_check = hurst > config.hurst_threshold_low
             physics_strong = hurst > config.hurst_threshold_high
-            physics_score = 0
-            if physics_strong:
-                physics_score = config.hurst_weight
-            elif physics_check:
-                physics_score = config.hurst_weight * 0.5
+            physics_score = config.hurst_weight if physics_strong else (config.hurst_weight * 0.5 if physics_check else 0)
 
             # Pillar 3: Micro-Check (Viral K)
+            # K > 1 = self-sustaining momentum
             micro_check = viral_k > config.k_threshold_low
             micro_strong = viral_k > config.k_threshold_high
-            micro_score = 0
-            if micro_strong:
-                micro_score = config.k_weight
-            elif micro_check:
-                micro_score = config.k_weight * 0.5
+            micro_score = config.k_weight if micro_strong else (config.k_weight * 0.5 if micro_check else 0)
 
-            # Bonus: CVD Check
+            # Bonus: CVD Check (Order Flow)
             cvd_bullish = cvd > config.cvd_accumulation_threshold
             cvd_bearish = cvd < config.cvd_distribution_threshold
             cvd_check = cvd_bullish
@@ -557,109 +400,11 @@ class TitanBrain:
                 confidence = 0.5
 
             # =================================
-            # PAN-SENSORY LAYER: OMNI-STACK LOGIC
+            # DYNAMIC RISK CALCULATION
             # =================================
-            # Integrate prediction, mempool, and on-chain data
-
-            # Initialize sensory defaults
-            prediction_odds = 0.5
-            narrative_signal = "neutral"
-            truth_divergence = 0.0
-            mempool_pressure = "neutral"
-            pending_buy_usd = 0.0
-            pending_sell_usd = 0.0
-            precognition_signal = "neutral"
-            smart_money_signal = "idle"
-            smart_money_flow_usd = 0.0
-            insider_confidence_boost = 0.0
-            omni_stack_score = 0.0
-            omni_stack_signal = "neutral"
-
-            if self.sensory_enabled:
-                # --- PREDICTION ORACLE: Truth vs Hype ---
-                truth_analysis = self.prediction_oracle.analyze_truth_divergence(
-                    asset=asset,
-                    viral_k=viral_k,
-                    market_phase=phase
-                )
-                prediction_odds = truth_analysis.prediction_odds
-                narrative_signal = truth_analysis.signal.value
-                truth_divergence = truth_analysis.divergence_score
-
-                # --- MEMPOOL SCANNER: Pre-Cognition ---
-                mempool_snapshot = self.mempool_scanner.get_snapshot(asset)
-                if mempool_snapshot:
-                    mempool_pressure = mempool_snapshot.pressure.value
-                    pending_buy_usd = mempool_snapshot.pending_buy_usd
-                    pending_sell_usd = mempool_snapshot.pending_sell_usd
-                    precognition_signal = mempool_snapshot.precognition_signal
-
-                # --- ON-CHAIN TRACKER: Smart Money Insight ---
-                onchain_snapshot = self.onchain_tracker.get_snapshot(asset)
-                if onchain_snapshot:
-                    smart_money_signal = onchain_snapshot.signal.value
-                    smart_money_flow_usd = onchain_snapshot.net_flow_usd
-
-                # Calculate insider confidence boost
-                insider_analysis = self.onchain_tracker.calculate_insider_confidence(
-                    asset=asset,
-                    entropy=entropy / 2.5,  # Normalize entropy to 0-1 scale
-                    base_confidence=confidence
-                )
-                insider_confidence_boost = insider_analysis.boosted_confidence - confidence
-
-                # =================================
-                # THE OMNI-STACK CONSENSUS LOGIC
-                # =================================
-
-                # VERIFIED_HYPE: High Viral K + High Prediction Odds = Trust the hype
-                if viral_k > 1.2 and prediction_odds > 0.60:
-                    omni_stack_signal = "verified_hype"
-                    omni_stack_score = 0.3  # Boost
-                    if signal_type in [SignalType.BUY, SignalType.STRONG_BUY]:
-                        confidence = min(0.95, confidence + 0.1)
-                        self.stats['omni_stack_signals']['verified_hype'] += 1
-
-                # FAKE_PUMP: High Viral K + Low Prediction Odds = Don't trust hype
-                elif viral_k > 1.2 and prediction_odds < 0.40:
-                    omni_stack_signal = "fake_pump"
-                    omni_stack_score = -0.5  # Major penalty
-                    if signal_type in [SignalType.BUY, SignalType.STRONG_BUY]:
-                        signal_type = SignalType.HOLD  # Block the trade!
-                        confidence = 0.3
-                        self.stats['omni_stack_signals']['fake_pump'] += 1
-
-                # PRECOGNITIVE_SNIPE: Whale trap + High mempool buy pressure
-                if micro_check and precognition_signal in ['PRECOGNITIVE_BUY', 'LEAN_BUY']:
-                    omni_stack_signal = "precognitive_snipe"
-                    omni_stack_score += 0.2
-                    if signal_type == SignalType.BUY:
-                        signal_type = SignalType.STRONG_BUY  # Upgrade signal
-                        confidence = min(0.95, confidence + 0.15)
-                        self.stats['omni_stack_signals']['precognitive_snipe'] += 1
-
-                # INSIDER_ACCUMULATION: Smart money buying + Low entropy
-                if smart_money_signal in ['accumulation', 'heavy_accumulation'] and entropy < 2.3:
-                    omni_stack_signal = "insider_accumulation"
-                    omni_stack_score += 0.4
-                    # Apply insider confidence boost
-                    confidence = min(0.99, insider_analysis.boosted_confidence)
-                    self.stats['omni_stack_signals']['insider_accumulation'] += 1
-
-                # DANGER: Smart money exiting
-                if smart_money_signal in ['distribution', 'heavy_distribution']:
-                    omni_stack_score -= 0.3
-                    if signal_type in [SignalType.BUY, SignalType.STRONG_BUY]:
-                        confidence = max(0.3, confidence - 0.2)
-
-            # =================================
-            # PROFESSIONAL: DYNAMIC RISK CALCULATION
-            # =================================
-            # Replace naive fixed percentages with ATR-based stops
 
             direction = "LONG" if signal_type in [SignalType.STRONG_BUY, SignalType.BUY] else "SHORT"
 
-            # Calculate dynamic risk parameters
             if len(prices) >= 5 and signal_type not in [SignalType.HOLD]:
                 risk_calc = self.risk_engine.calculate_dynamic_risk(
                     entry_price=price,
@@ -681,7 +426,7 @@ class TitanBrain:
                 max_loss_amount = risk_calc.max_loss_amount
                 potential_profit = risk_calc.potential_profit
             else:
-                # Fallback to fixed percentages if not enough price history
+                # Fallback to fixed percentages
                 if signal_type in [SignalType.STRONG_BUY, SignalType.BUY]:
                     position_size = min(
                         config.position_size_base + (conviction * config.position_size_per_conviction),
@@ -692,7 +437,7 @@ class TitanBrain:
 
                 stop_loss = price * (1 - config.stop_loss_pct)
                 take_profit = price * (1 + config.take_profit_pct)
-                atr = price * 0.02  # Default 2%
+                atr = price * 0.02
                 atr_pct = 0.02
                 volatility_regime = "normal"
                 risk_reward_ratio = 2.0
@@ -702,9 +447,8 @@ class TitanBrain:
                 potential_profit = self.portfolio_value * position_size * config.take_profit_pct
 
             # =================================
-            # PROFESSIONAL: NARRATIVE GENERATION
+            # NARRATIVE GENERATION
             # =================================
-            # Explain the trade in plain English
 
             narrative = self.narrative_engine.generate_narrative(
                 signal_type=signal_type.value,
@@ -727,7 +471,7 @@ class TitanBrain:
             )
 
             # =================================
-            # CREATE SIGNAL (FULLY ENRICHED)
+            # CREATE SIGNAL
             # =================================
 
             signal = TradingSignal(
@@ -746,7 +490,6 @@ class TitanBrain:
                 viral_k=viral_k,
                 cvd=cvd,
                 market_phase=phase,
-                # Dynamic risk parameters
                 position_size=position_size,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
@@ -758,7 +501,6 @@ class TitanBrain:
                 quality_reason=quality_reason,
                 max_loss_amount=max_loss_amount,
                 potential_profit=potential_profit,
-                # Narrative
                 headline=narrative.headline,
                 story=narrative.story,
                 narrative_type=narrative.narrative_type.value,
@@ -770,19 +512,6 @@ class TitanBrain:
                 risk_warning=narrative.risk_warning,
                 invalidation=narrative.invalidation,
                 time_horizon=narrative.time_horizon,
-                # Pan-Sensory Layer
-                prediction_odds=prediction_odds,
-                narrative_signal=narrative_signal,
-                truth_divergence=truth_divergence,
-                mempool_pressure=mempool_pressure,
-                pending_buy_usd=pending_buy_usd,
-                pending_sell_usd=pending_sell_usd,
-                precognition_signal=precognition_signal,
-                smart_money_signal=smart_money_signal,
-                smart_money_flow_usd=smart_money_flow_usd,
-                insider_confidence_boost=insider_confidence_boost,
-                omni_stack_score=omni_stack_score,
-                omni_stack_signal=omni_stack_signal
             )
 
             # Update stats
@@ -794,6 +523,8 @@ class TitanBrain:
                 self.stats['buy_signals'] += 1
             elif signal_type in [SignalType.SELL, SignalType.STRONG_SELL, SignalType.EXIT]:
                 self.stats['sell_signals'] += 1
+            else:
+                self.stats['hold_signals'] += 1
 
             # Callback
             if self.on_signal and signal_type != SignalType.HOLD:
@@ -811,9 +542,7 @@ class TitanBrain:
         with self._lock:
             return {
                 **self.stats,
-                'evolution_count': self.evolution_count,
                 'config_version': self.config.version,
-                'config_source': self.config.source,
                 'is_active': self.is_active
             }
 
@@ -834,97 +563,31 @@ class TitanBrain:
                 'signals_generated': 0,
                 'buy_signals': 0,
                 'sell_signals': 0,
-                'config_updates': self.stats.get('config_updates', 0),
+                'hold_signals': 0,
                 'last_signal_time': None,
-                'omni_stack_signals': {
-                    'verified_hype': 0,
-                    'fake_pump': 0,
-                    'precognitive_snipe': 0,
-                    'insider_accumulation': 0
-                }
             }
             logger.info("🧠 TitanBrain reset")
 
 
-# =============================================================================
-# BRAIN + DARWIN INTEGRATION
-# =============================================================================
-
-class EvolvingBrain(TitanBrain):
-    """
-    TitanBrain with integrated Darwin evolution.
-    Automatically evolves based on simulated performance.
-    """
-
-    def __init__(self, config: BrainConfig = None):
-        super().__init__(config)
-        self.darwin = None
-        self._evolution_thread = None
-        self._is_evolving = False
-
-    def attach_darwin(self, darwin: 'Darwin'):
-        """Attach Darwin engine for evolution"""
-        self.darwin = darwin
-
-        # Set callback for alpha evolution
-        def on_alpha_evolved(genome):
-            self.update_from_genome(genome)
-
-        darwin.on_alpha_evolved = on_alpha_evolved
-        logger.info("🧬 Darwin attached to TitanBrain")
-
-    def start_evolution(self, matrix):
-        """Start background evolution"""
-        if not self.darwin:
-            from ..evolution.darwin import Darwin
-            self.darwin = Darwin()
-
-        self.darwin.start_evolution(matrix)
-        self._is_evolving = True
-        logger.info("🧬 Brain evolution STARTED")
-
-    def stop_evolution(self):
-        """Stop background evolution"""
-        if self.darwin:
-            self.darwin.stop_evolution()
-        self._is_evolving = False
-        logger.info("🧬 Brain evolution STOPPED")
-
-    def get_evolution_stats(self) -> Dict:
-        """Get evolution statistics"""
-        stats = self.get_stats()
-        if self.darwin:
-            stats['darwin'] = self.darwin.get_stats()
-        stats['is_evolving'] = self._is_evolving
-        return stats
-
-
 if __name__ == "__main__":
-    # Test TitanBrain with Professional Output
+    # Test TitanBrain
     logging.basicConfig(level=logging.INFO)
 
     print("\n" + "="*80)
-    print("  TITAN BRAIN - PROFESSIONAL MODE TEST")
-    print("  Dynamic Risk Engine + Narrative Engine")
+    print("  TITAN BRAIN - THREE-PILLAR CONVERGENCE TEST")
+    print("  Entropy + Hurst + CVD → Signal")
     print("="*80 + "\n")
 
-    # Initialize with $10,000 portfolio
     brain = TitanBrain(portfolio_value=10000.0)
 
-    # Simulate BTC price history (for ATR calculation)
-    # First, warm up with realistic prices around $95,000
+    # Warm up price history
     import random
     base_price = 95000
-    warmup_prices = [base_price]
-    for i in range(20):
-        change = random.gauss(0, 0.015) * warmup_prices[-1]
-        warmup_prices.append(warmup_prices[-1] + change)
-
-    # Warm up price history
-    for p in warmup_prices:
+    for i in range(25):
+        p = base_price + random.gauss(0, 500)
         brain._update_price_history('BTC/USDT', p)
 
-    # Simulate real market scenarios
+    # Test scenarios
     test_ticks = [
         {
             'asset': 'BTC/USDT',
@@ -957,25 +620,17 @@ if __name__ == "__main__":
 
     for i, tick in enumerate(test_ticks, 1):
         print(f"\n{'─'*80}")
-        print(f"  TICK #{i}: {tick['phase'].upper()} PHASE")
+        print(f"  TICK #{i}: {tick['phase'].upper()}")
         print(f"{'─'*80}")
 
         signal = brain.process_tick(tick)
-
-        # Show the professional output for non-HOLD signals
-        if signal.signal_type.value != "HOLD":
-            print(signal.format_professional_output())
-        else:
-            print(f"\n  Signal: {signal.signal_type.value}")
-            print(f"  Headline: {signal.headline}")
-            print(f"  Story: {signal.story[:150]}...")
+        print(f"\n  Signal: {signal.signal_type.value}")
+        print(f"  Confidence: {signal.confidence:.2f}")
+        print(f"  Pillars: {sum([signal.bio_check, signal.physics_check, signal.micro_check, signal.cvd_check])}/4")
+        print(f"  Headline: {signal.headline}")
 
     print(f"\n{'='*80}")
-    print("  SESSION STATS")
-    print(f"{'='*80}")
     stats = brain.get_stats()
-    print(f"  Signals Generated: {stats['signals_generated']}")
-    print(f"  Buy Signals: {stats['buy_signals']}")
-    print(f"  Sell Signals: {stats['sell_signals']}")
-    print(f"  Evolution Count: {stats['evolution_count']}")
+    print(f"  Total Signals: {stats['signals_generated']}")
+    print(f"  Buy: {stats['buy_signals']} | Sell: {stats['sell_signals']} | Hold: {stats['hold_signals']}")
     print(f"{'='*80}\n")

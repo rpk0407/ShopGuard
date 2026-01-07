@@ -32,22 +32,13 @@ except ImportError:
     MATRIX_AVAILABLE = False
     print("  ⚠ Matrix not available - using live data only")
 
-# Initialize Darwin Evolution Engine
+# Initialize TITAN Core Components
 try:
-    from .src.evolution.darwin import Darwin, EvolutionConfig, Genome
-    from .src.core.titan_brain import TitanBrain, EvolvingBrain, BrainConfig
+    from .src.core.titan_brain import TitanBrain, BrainConfig
     from .src.core.fast_math import FastMath
     from .src.core.ecosystem import TitanEcosystem, EcosystemConfig
 
-    darwin_config = EvolutionConfig(
-        population_size=50,
-        evaluation_ticks=300,
-        generation_interval=600,  # 10 minutes
-        hot_swap_interval=3600    # 1 hour
-    )
-    darwin = Darwin(config=darwin_config, matrix=matrix)
-    titan_brain = EvolvingBrain()
-    titan_brain.attach_darwin(darwin)
+    titan_brain = TitanBrain()
     fast_math = FastMath()
     fast_math.warmup()  # Pre-compile JIT functions
 
@@ -55,29 +46,27 @@ try:
     ecosystem_config = EcosystemConfig(
         initial_capital=10000.0,
         max_concurrent_positions=3,
-        enable_evolution=True,
         enable_paper_trading=True
     )
     ecosystem = TitanEcosystem(config=ecosystem_config)
-    ecosystem.attach_darwin(darwin)
     if matrix:
         ecosystem.attach_matrix(matrix)
     ecosystem.start()
 
-    DARWIN_AVAILABLE = True
     ECOSYSTEM_AVAILABLE = True
-    print("  ✓ Darwin Evolution Engine initialized (50 mutants)")
-    print("  ✓ TitanBrain with dynamic config ready")
-    print("  ✓ FastMath JIT acceleration enabled")
-    print("  ✓ 🌍 TITAN Ecosystem fully integrated")
+    print("  TitanBrain (3-pillar convergence) ready")
+    print("  FastMath JIT acceleration enabled")
+    print("  TITAN Ecosystem initialized")
 except ImportError as e:
-    darwin = None
     titan_brain = None
     fast_math = None
     ecosystem = None
-    DARWIN_AVAILABLE = False
     ECOSYSTEM_AVAILABLE = False
-    print(f"  ⚠ Darwin/Ecosystem not available: {e}")
+    print(f"  Ecosystem not available: {e}")
+
+# Darwin evolution removed per TQO analysis (prove edge first before optimization)
+DARWIN_AVAILABLE = False
+darwin = None
 
 # SSE clients for Matrix streaming
 matrix_clients = []
@@ -2438,7 +2427,7 @@ def generate_matrix_stream():
             phase = tick.get('phase', 'stable')
 
             # USE TITAN BRAIN FOR SIGNAL GENERATION (if available)
-            if DARWIN_AVAILABLE and titan_brain:
+            if ECOSYSTEM_AVAILABLE and titan_brain:
                 # Process tick through TitanBrain with evolved parameters
                 brain_tick = {
                     'asset': 'BTC/USDT',
@@ -2487,14 +2476,14 @@ def generate_matrix_stream():
                 'phase': phase,
                 'signal': signal,
                 'confidence': confidence,
-                'conviction': conviction if DARWIN_AVAILABLE else 0,
+                'conviction': conviction if ECOSYSTEM_AVAILABLE else 0,
                 'entropy': entropy,
                 'hurst': hurst,
                 'viral_k': viral_k,
                 'cvd': cvd,
                 'pillars': pillars,
-                'brain_version': titan_brain.config.version if DARWIN_AVAILABLE and titan_brain else 0,
-                'brain_source': titan_brain.config.source if DARWIN_AVAILABLE and titan_brain else 'fallback',
+                'brain_version': titan_brain.config.version if ECOSYSTEM_AVAILABLE and titan_brain else 0,
+                'brain_source': titan_brain.config.source if ECOSYSTEM_AVAILABLE and titan_brain else 'fallback',
                 'timestamp': tick.get('timestamp', time.time())
             }
 
@@ -2648,7 +2637,7 @@ def api_darwin_alpha():
 @app.route('/api/brain/config')
 def api_brain_config():
     """Get TitanBrain configuration"""
-    if not DARWIN_AVAILABLE or not titan_brain:
+    if not ECOSYSTEM_AVAILABLE or not titan_brain:
         return jsonify({'success': False, 'error': 'TitanBrain not available'})
 
     try:
@@ -2835,18 +2824,15 @@ def run_app(host='0.0.0.0', port=5000, debug=False):
     print("    ✓ Complete trading education")
     print("    ✓ Paper trading with $100 capital")
     if MATRIX_AVAILABLE:
-        print("    ✓ 🔮 Matrix Simulation Engine (Perfect Storm every 60s)")
-    if DARWIN_AVAILABLE:
-        print("    ✓ 🧬 Darwin Evolution Engine (50 mutants, auto-optimization)")
-        print("    ✓ 🧠 TitanBrain with dynamic config hot-swap")
-        print("    ✓ ⚡ FastMath Numba JIT acceleration (100x speedup)")
+        print("    Matrix Simulation Engine (Perfect Storm every 60s)")
     if ECOSYSTEM_AVAILABLE:
-        print("    ✓ 🌍 TITAN Ecosystem (unified trading organism)")
-        print("       - Risk Manager (Kelly sizing, circuit breakers)")
-        print("       - Order Executor (slippage, partial fills)")
-        print("       - Regime Detector (market classification)")
-        print("       - Trade Journal (performance analytics)")
-        print("       - Alert System (event propagation)")
+        print("    TITAN Ecosystem (3-pillar convergence)")
+        print("       - TitanBrain (Entropy + Hurst + CVD)")
+        print("       - FastMath JIT acceleration")
+        print("       - Risk Manager (ATR-based stops)")
+        print("       - Order Executor")
+        print("       - Regime Detector")
+        print("       - Trade Journal")
     print("\n" + "=" * 60 + "\n")
 
     app.run(host=host, port=port, debug=debug)
