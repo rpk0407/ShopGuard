@@ -1,12 +1,25 @@
 """
-Broker Manager - Coordinates Alpaca (stocks) and Binance (crypto)
-Automatically routes trades to the correct broker based on asset type
+Broker Manager - Coordinates multiple brokers for unified trading
+Automatically routes trades to the correct broker based on asset type and mode.
+
+Brokers:
+- Hyperliquid: Crypto perpetual futures (RECOMMENDED for crypto)
+- Binance: Crypto spot trading
+- Alpaca: Stock trading
 """
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 
 from .alpaca_broker import AlpacaBroker, alpaca
 from .binance_broker import BinanceBroker, binance
+
+# Hyperliquid is imported on-demand to avoid dependency issues
+HYPERLIQUID_AVAILABLE = False
+try:
+    from .hyperliquid import HyperliquidBroker, BrokerConfig
+    HYPERLIQUID_AVAILABLE = True
+except ImportError:
+    pass
 
 
 @dataclass
@@ -28,7 +41,14 @@ class BrokerManager:
 
     Automatically routes:
     - Stocks (NVDA, SPY, QQQ, etc.) -> Alpaca
-    - Crypto (BTC, ETH, etc.) -> Binance
+    - Crypto Perps (BTC, ETH, etc.) -> Hyperliquid (preferred)
+    - Crypto Spot -> Binance (fallback)
+
+    Hyperliquid is preferred for crypto because:
+    - Zero gas fees
+    - Non-custodial
+    - Visible mempool (MEV opportunities)
+    - 0% maker fees at high volume
     """
 
     # Known stock symbols
@@ -49,6 +69,11 @@ class BrokerManager:
         self.alpaca = alpaca
         self.binance = binance
 
+        # Hyperliquid broker (initialized on configure)
+        self.hyperliquid: Optional['HyperliquidBroker'] = None
+        self.hyperliquid_available = HYPERLIQUID_AVAILABLE
+        self.prefer_hyperliquid = True  # Use Hyperliquid for crypto when available
+
     def _is_crypto(self, symbol: str) -> bool:
         """Determine if symbol is crypto"""
         symbol = symbol.upper()
@@ -64,12 +89,56 @@ class BrokerManager:
         return self.alpaca.configure(api_key, secret_key, paper)
 
     def configure_binance(self, api_key: str, secret_key: str, testnet: bool = True) -> Dict:
-        """Configure Binance for crypto trading"""
+        """Configure Binance for crypto spot trading"""
         return self.binance.configure(api_key, secret_key, testnet)
+
+    def configure_hyperliquid(
+        self,
+        private_key: str,
+        testnet: bool = True,
+        assets: List[str] = None
+    ) -> Dict:
+        """
+        Configure Hyperliquid for crypto perpetual futures trading.
+
+        Args:
+            private_key: Ethereum private key (0x prefixed)
+            testnet: Use testnet (recommended for development)
+            assets: Assets to track (default: ["BTC", "ETH"])
+        """
+        if not HYPERLIQUID_AVAILABLE:
+            return {
+                "success": False,
+                "error": "Hyperliquid module not available. Install: pip install eth-account requests websockets"
+            }
+
+        try:
+            config = BrokerConfig(
+                private_key=private_key,
+                testnet=testnet,
+                assets=assets or ["BTC", "ETH"]
+            )
+            self.hyperliquid = HyperliquidBroker(config)
+            return {
+                "success": True,
+                "testnet": testnet,
+                "message": "Hyperliquid configured. Call connect_hyperliquid() to connect."
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def connect_hyperliquid(self) -> Dict:
+        """Connect to Hyperliquid (async)"""
+        if not self.hyperliquid:
+            return {"success": False, "error": "Hyperliquid not configured"}
+
+        if await self.hyperliquid.connect():
+            return {"success": True, "status": self.hyperliquid.get_status()}
+        return {"success": False, "error": "Connection failed"}
 
     def get_status(self) -> Dict:
         """Get connection status for all brokers"""
-        return {
+        status = {
             "alpaca": {
                 "connected": self.alpaca.connected,
                 "mode": "paper" if self.alpaca.paper else "live",
@@ -79,8 +148,15 @@ class BrokerManager:
                 "connected": self.binance.connected,
                 "mode": "testnet" if self.binance.testnet else "live",
                 "account": self.binance.get_account() if self.binance.connected else None
+            },
+            "hyperliquid": {
+                "available": HYPERLIQUID_AVAILABLE,
+                "configured": self.hyperliquid is not None,
+                "connected": self.hyperliquid.state.value == "connected" if self.hyperliquid else False,
+                "status": self.hyperliquid.get_status() if self.hyperliquid else None
             }
         }
+        return status
 
     def get_total_equity(self) -> Dict:
         """Get combined equity from all brokers"""
