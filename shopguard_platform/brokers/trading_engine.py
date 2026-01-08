@@ -5,11 +5,15 @@ Unified trading engine connecting TitanBrain signals with Hyperliquid execution.
 
 This is the core loop that:
 1. Receives real-time CVD from Hyperliquid WebSocket
-2. Feeds data to TitanBrain for signal generation
-3. Executes signals through Hyperliquid broker
-4. Manages positions with ATR-based stops
+2. Integrates external alpha (prediction markets, social sentiment, news)
+3. Feeds data to TitanBrain for signal generation
+4. Executes signals through Hyperliquid broker
+5. Manages positions with ATR-based stops
 
 Architecture:
+    External Alpha ────────────────────────────┐
+    (Polymarket, Twitter, Reddit, News)        │
+                                               ▼
     Hyperliquid WS → CVD Engine → TitanBrain → Risk Manager → Hyperliquid Execution
                          ↓              ↓
                     Funding Scanner  Position Monitor
@@ -34,6 +38,15 @@ from .hyperliquid import HyperliquidBroker, BrokerConfig
 from .hyperliquid.websocket import HyperliquidWebSocket, CVDState, Trade
 from .hyperliquid.client import HyperliquidClient
 from .hyperliquid.funding import FundingScanner, FundingConfig, FundingOpportunity
+
+# Import external signals
+try:
+    from ..signals.external import (
+        SignalAggregator, AggregatedSignal, ExternalSignalConfig
+    )
+    EXTERNAL_SIGNALS_AVAILABLE = True
+except ImportError:
+    EXTERNAL_SIGNALS_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +73,13 @@ class EngineConfig:
     min_confidence: float = 0.6
     cvd_weight: float = 0.5  # Enhanced CVD weighting
     require_cvd_confirmation: bool = True
+
+    # External Signals (Prediction Markets, Social, News)
+    enable_external_signals: bool = True
+    external_signal_weight: float = 0.25  # Weight of external signals vs technical
+    twitter_bearer_token: Optional[str] = None
+    newsapi_key: Optional[str] = None
+    lunarcrush_api_key: Optional[str] = None
 
     # Risk
     max_position_pct: float = 0.25
@@ -128,6 +148,7 @@ class TitanTradingEngine:
         self.broker: Optional[HyperliquidBroker] = None
         self.brain: Optional['TitanBrain'] = None
         self.funding_scanner: Optional[FundingScanner] = None
+        self.external_signals: Optional['SignalAggregator'] = None
 
         # State tracking
         self._last_signal_time: Dict[str, float] = {}
@@ -197,6 +218,25 @@ class TitanTradingEngine:
                 )
                 self.funding_scanner.on_opportunity = self._on_funding_opportunity
 
+            # Initialize external signals (prediction markets, social, news)
+            if self.config.enable_external_signals and EXTERNAL_SIGNALS_AVAILABLE:
+                external_config = ExternalSignalConfig(
+                    enable_polymarket=True,
+                    enable_social=True,
+                    enable_news=True,
+                    twitter_bearer_token=self.config.twitter_bearer_token,
+                    newsapi_key=self.config.newsapi_key,
+                    lunarcrush_api_key=self.config.lunarcrush_api_key,
+                    assets=self.config.assets
+                )
+                self.external_signals = SignalAggregator(external_config)
+                self.external_signals.on_signal = self._on_external_signal
+                self.external_signals.on_urgent_signal = self._on_urgent_external_signal
+                await self.external_signals.start()
+                logger.info("External signals initialized (Polymarket, Social, News)")
+            elif self.config.enable_external_signals:
+                logger.warning("External signals requested but module not available")
+
             # Start background tasks
             self._running = True
             self._tasks = [
@@ -227,6 +267,10 @@ class TitanTradingEngine:
         # Cancel tasks
         for task in self._tasks:
             task.cancel()
+
+        # Stop external signals
+        if self.external_signals:
+            await self.external_signals.stop()
 
         # Disconnect broker
         if self.broker:
@@ -341,11 +385,16 @@ class TitanTradingEngine:
         price: float,
         cvd_state: Optional[CVDState]
     ) -> Optional['TradingSignal']:
-        """Generate trading signal using TitanBrain + CVD"""
+        """Generate trading signal using TitanBrain + CVD + External Signals"""
 
         # Calculate ATR (simplified - would use proper candle data)
         atr = self._calculate_atr(asset, price)
         self._atr_values[asset] = atr
+
+        # Get external signals (prediction markets, social, news)
+        external_data = None
+        if self.external_signals:
+            external_data = self.external_signals.get_signal_for_titan(asset)
 
         # Build tick data for TitanBrain
         tick_data = {
@@ -360,6 +409,9 @@ class TitanTradingEngine:
             'entropy': 2.0,  # Placeholder
             'hurst': 0.5,    # Placeholder
             'viral_k': 1.0,  # Placeholder
+            # External signals
+            'external_direction': external_data.get('external_direction', 0) if external_data else 0,
+            'external_confidence': external_data.get('external_confidence', 0) if external_data else 0,
         }
 
         # Get CVD divergence signal
@@ -375,6 +427,10 @@ class TitanTradingEngine:
             if cvd_divergence:
                 signal = self._enhance_signal_with_cvd(signal, cvd_divergence)
 
+            # Enhance with external signals
+            if external_data:
+                signal = self._enhance_signal_with_external(signal, external_data)
+
             # Add ATR-based stops
             signal.atr = atr
             signal.stop_loss = self._calculate_stop_loss(
@@ -387,7 +443,7 @@ class TitanTradingEngine:
             return signal
 
         # Simplified signal generation without TitanBrain
-        return self._generate_simple_signal(asset, price, cvd_state, cvd_divergence, atr)
+        return self._generate_simple_signal(asset, price, cvd_state, cvd_divergence, atr, external_data)
 
     def _enhance_signal_with_cvd(
         self,
@@ -417,24 +473,76 @@ class TitanTradingEngine:
 
         return signal
 
+    def _enhance_signal_with_external(
+        self,
+        signal: 'TradingSignal',
+        external_data: Dict
+    ) -> 'TradingSignal':
+        """Enhance TitanBrain signal with external signals (prediction markets, social, news)"""
+
+        external_direction = external_data.get('external_direction', 0)
+        external_confidence = external_data.get('external_confidence', 0)
+        external_urgency = external_data.get('external_urgency', 0)
+
+        # Skip if external signal is weak
+        if abs(external_direction) < 0.2 or external_confidence < 0.3:
+            return signal
+
+        weight = self.config.external_signal_weight
+
+        # Check if external signals confirm or contradict the technical signal
+        sig_type = signal.signal_type.value if hasattr(signal.signal_type, 'value') else signal.signal_type
+
+        if sig_type in ["BUY", "STRONG_BUY"]:
+            if external_direction > 0:
+                # External confirms bullish signal
+                boost = weight * external_confidence * external_direction
+                signal.confidence = min(1.0, signal.confidence + boost)
+                signal.external_confirmed = True
+            else:
+                # External contradicts bullish signal
+                penalty = weight * external_confidence * abs(external_direction) * 0.5
+                signal.confidence = max(0.0, signal.confidence - penalty)
+
+        elif sig_type in ["SELL", "EXIT"]:
+            if external_direction < 0:
+                # External confirms bearish signal
+                boost = weight * external_confidence * abs(external_direction)
+                signal.confidence = min(1.0, signal.confidence + boost)
+                signal.external_confirmed = True
+            else:
+                # External contradicts bearish signal
+                penalty = weight * external_confidence * external_direction * 0.5
+                signal.confidence = max(0.0, signal.confidence - penalty)
+
+        # Urgent external signals get extra weight
+        if external_urgency > 0.5:
+            if (external_direction > 0 and sig_type in ["BUY", "STRONG_BUY"]) or \
+               (external_direction < 0 and sig_type in ["SELL", "EXIT"]):
+                signal.confidence = min(1.0, signal.confidence + 0.1)
+
+        return signal
+
     def _generate_simple_signal(
         self,
         asset: str,
         price: float,
         cvd_state: Optional[CVDState],
         cvd_divergence: Optional[str],
-        atr: float
+        atr: float,
+        external_data: Optional[Dict] = None
     ) -> Optional['TradingSignal']:
         """Simple signal generation without TitanBrain"""
 
         # This is a simplified fallback
         # Real implementation should use proper indicators
 
-        if not cvd_divergence:
-            return None
+        signal = None
+        reasons = []
 
+        # CVD-based signal
         if cvd_divergence == "BULLISH":
-            return self._create_signal(
+            signal = self._create_signal(
                 asset=asset,
                 signal_type="BUY",
                 confidence=0.65,
@@ -442,8 +550,9 @@ class TitanTradingEngine:
                 atr=atr,
                 reason="CVD Bullish Divergence"
             )
+            reasons.append("CVD Bullish")
         elif cvd_divergence == "BEARISH":
-            return self._create_signal(
+            signal = self._create_signal(
                 asset=asset,
                 signal_type="SELL",
                 confidence=0.65,
@@ -451,8 +560,66 @@ class TitanTradingEngine:
                 atr=atr,
                 reason="CVD Bearish Divergence"
             )
+            reasons.append("CVD Bearish")
 
-        return None
+        # Enhance with external signals if available
+        if external_data and signal:
+            ext_dir = external_data.get('external_direction', 0)
+            ext_conf = external_data.get('external_confidence', 0)
+            ext_urg = external_data.get('external_urgency', 0)
+
+            if abs(ext_dir) > 0.2 and ext_conf > 0.3:
+                sig_type = signal.signal_type
+
+                # Check alignment
+                if (sig_type == "BUY" and ext_dir > 0) or (sig_type == "SELL" and ext_dir < 0):
+                    # External confirms
+                    boost = self.config.external_signal_weight * ext_conf * abs(ext_dir)
+                    signal.confidence = min(1.0, signal.confidence + boost)
+                    reasons.append("External Confirmed")
+
+                    # Add source details
+                    if external_data.get('prediction_signal', 0) != 0:
+                        reasons.append("Polymarket")
+                    if external_data.get('social_signal', 0) != 0:
+                        reasons.append("Social")
+                    if external_data.get('news_signal', 0) != 0:
+                        reasons.append("News")
+                else:
+                    # External contradicts
+                    penalty = self.config.external_signal_weight * ext_conf * abs(ext_dir) * 0.5
+                    signal.confidence = max(0.0, signal.confidence - penalty)
+
+            signal.story = f"{signal.signal_type} signal for {asset} based on: {', '.join(reasons)}"
+
+        # If no CVD signal, check if external signals are strong enough on their own
+        elif external_data and not signal:
+            ext_dir = external_data.get('external_direction', 0)
+            ext_conf = external_data.get('external_confidence', 0)
+            ext_urg = external_data.get('external_urgency', 0)
+
+            # Strong external signal can trigger on its own (with high urgency)
+            if abs(ext_dir) > 0.5 and ext_conf > 0.6 and ext_urg > 0.5:
+                if ext_dir > 0:
+                    signal = self._create_signal(
+                        asset=asset,
+                        signal_type="BUY",
+                        confidence=ext_conf * 0.8,  # Slightly reduced without CVD confirmation
+                        price=price,
+                        atr=atr,
+                        reason="Strong External Bullish Signal (Prediction/Social/News)"
+                    )
+                else:
+                    signal = self._create_signal(
+                        asset=asset,
+                        signal_type="SELL",
+                        confidence=ext_conf * 0.8,
+                        price=price,
+                        atr=atr,
+                        reason="Strong External Bearish Signal (Prediction/Social/News)"
+                    )
+
+        return signal
 
     def _create_signal(
         self,
@@ -594,19 +761,38 @@ class TitanTradingEngine:
         if self.on_funding:
             self.on_funding(opp)
 
+    def _on_external_signal(self, signal: 'AggregatedSignal'):
+        """Handle external signal from aggregator"""
+        direction = "BULLISH" if signal.direction > 0 else "BEARISH" if signal.direction < 0 else "NEUTRAL"
+        logger.info(
+            f"External signal: {signal.asset} {direction} "
+            f"(conf: {signal.confidence:.2f}, sources: {signal.source_count})"
+        )
+
+    def _on_urgent_external_signal(self, signal: 'AggregatedSignal'):
+        """Handle urgent external signal (e.g., breaking news)"""
+        direction = "BULLISH" if signal.direction > 0 else "BEARISH" if signal.direction < 0 else "NEUTRAL"
+        logger.warning(
+            f"URGENT External signal: {signal.asset} {direction} "
+            f"(urgency: {signal.urgency:.2f}) - {signal.reasoning}"
+        )
+        # Urgent signals bypass normal cooldown
+        self._last_signal_time[signal.asset] = 0
+
     # =========================================
     # STATUS
     # =========================================
 
     def get_status(self) -> Dict:
         """Get engine status"""
-        return {
+        status = {
             'state': self.state.value,
             'uptime_hours': self.stats.uptime_hours,
             'assets': self.config.assets,
             'testnet': self.config.testnet,
             'broker': self.broker.get_status() if self.broker else None,
             'brain_available': BRAIN_AVAILABLE,
+            'external_signals_enabled': self.config.enable_external_signals and EXTERNAL_SIGNALS_AVAILABLE,
             'funding_enabled': self.config.enable_funding_arbitrage,
             'prices': self._prices,
             'cvd': {
@@ -617,6 +803,17 @@ class TitanTradingEngine:
                 for asset, state in self._cvd_states.items()
             }
         }
+
+        # Add external signal summary
+        if self.external_signals:
+            ext_summary = self.external_signals.get_summary()
+            status['external_signals'] = {
+                'overall_sentiment': ext_summary.get('overall_sentiment', 0),
+                'urgent_count': ext_summary.get('urgent_count', 0),
+                'assets': ext_summary.get('assets', {})
+            }
+
+        return status
 
     def get_stats(self) -> Dict:
         """Get engine statistics"""
@@ -644,7 +841,8 @@ async def demo_engine():
     config = EngineConfig(
         testnet=True,
         assets=["BTC", "ETH"],
-        enable_funding_arbitrage=True
+        enable_funding_arbitrage=True,
+        enable_external_signals=True  # Enable prediction markets, social, news
     )
 
     engine = TitanTradingEngine(config)
@@ -660,11 +858,15 @@ async def demo_engine():
     engine.on_signal = on_signal
 
     print("Starting engine (read-only mode)...")
+    print("  - CVD from Hyperliquid WebSocket")
+    print("  - External signals (Polymarket, Social, News)")
+    print("  - Funding rate monitoring")
+
     if not await engine.start():
         print("Failed to start engine")
         return
 
-    print("\nEngine running. Collecting CVD data...")
+    print("\nEngine running. Collecting data...")
     print("Press Ctrl+C to stop\n")
 
     try:
@@ -683,6 +885,14 @@ async def demo_engine():
             # Show CVD
             for asset, cvd in status.get('cvd', {}).items():
                 print(f"  {asset} CVD: {cvd['cvd']:,.2f} | Divergence: {cvd['divergence']}")
+
+            # Show external signals
+            ext_signals = status.get('external_signals', {})
+            if ext_signals:
+                print(f"  External Sentiment: {ext_signals.get('overall_sentiment', 0):.2f}")
+                for asset, data in ext_signals.get('assets', {}).items():
+                    direction = "BULL" if data.get('direction', 0) > 0 else "BEAR" if data.get('direction', 0) < 0 else "NEUT"
+                    print(f"    {asset}: {direction} (conf: {data.get('confidence', 0):.2f})")
 
     except KeyboardInterrupt:
         print("\n\nStopping...")
