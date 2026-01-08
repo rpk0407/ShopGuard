@@ -1,39 +1,110 @@
 """
-External Alpha Sources
-======================
-Alternative data signals for enhanced trading decisions.
+External Alpha Sources - Smart Money Edition
+=============================================
+Contrarian signals based on smart money vs retail divergence.
 
-Sources:
-- Prediction Markets (Polymarket) - Market-implied probabilities
-- Social Sentiment (Twitter/Reddit) - Crowd sentiment analysis
-- News Sentiment - Breaking news impact assessment
+Core Philosophy:
+    "Don't be exit liquidity for smart money."
 
-Integration:
-- All signals feed into TitanBrain via unified interface
-- Each source provides confidence-weighted signals
-- Signals are normalized to [-1, 1] range (bearish to bullish)
+Modules:
+- smart_money: Whale/institutional tracking vs retail
+- sentiment_extremes: Fear & Greed contrarian signals
+- liquidity_trap: Detect when retail is being used as exit liquidity
+- news_filter: Filter noise from real market-moving news
+- aggregator: Combines all signals with smart money weighting
+
+Data Gathering (for sentiment detection):
+- polymarket: Prediction market signals
+- social_sentiment: Twitter/Reddit sentiment
+- news_sentiment: News sentiment
+
+Signal Priority:
+1. Smart Money Flow (40%) - What whales are doing
+2. Liquidity Trap (25%) - Avoid being exit liquidity
+3. Sentiment Extremes (20%) - Contrarian F&G signals
+4. Filtered News (10%) - Only real market-moving events
+5. Prediction Markets (5%) - Probability-based signals
 """
 
+# Smart Money Components (Primary)
+from .smart_money import SmartMoneyTracker, SmartMoneySignal, MoneyType, FlowDirection
+from .sentiment_extremes import (
+    SentimentExtremesDetector,
+    ContrarianSignal,
+    FearGreedState,
+    SentimentZone,
+    SignalStrength
+)
+from .liquidity_trap import (
+    LiquidityTrapDetector,
+    TrapSignal,
+    TrapType,
+    TrapSeverity,
+    LiquidityState
+)
+from .news_filter import (
+    NewsImpactFilter,
+    FilteredNews,
+    NewsImpact,
+    NewsAction,
+    NewsFilterConfig
+)
+
+# Data Gathering Components (Secondary)
 from .polymarket import PolymarketScanner, PredictionSignal, MarketCategory
 from .social_sentiment import SocialSentimentAnalyzer, SentimentSignal, Platform
 from .news_sentiment import NewsSentimentScanner, NewsSignal, NewsSource
-from .aggregator import SignalAggregator, AggregatedSignal, ExternalSignalConfig
+
+# Aggregator (Main Entry Point)
+from .aggregator import (
+    SignalAggregator,
+    AggregatedSignal,
+    ExternalSignalConfig,
+    SignalMode
+)
 
 __all__ = [
-    # Polymarket
+    # Smart Money (Primary)
+    'SmartMoneyTracker',
+    'SmartMoneySignal',
+    'MoneyType',
+    'FlowDirection',
+
+    # Sentiment Extremes
+    'SentimentExtremesDetector',
+    'ContrarianSignal',
+    'FearGreedState',
+    'SentimentZone',
+    'SignalStrength',
+
+    # Liquidity Trap Detection
+    'LiquidityTrapDetector',
+    'TrapSignal',
+    'TrapType',
+    'TrapSeverity',
+    'LiquidityState',
+
+    # News Filtering
+    'NewsImpactFilter',
+    'FilteredNews',
+    'NewsImpact',
+    'NewsAction',
+    'NewsFilterConfig',
+
+    # Data Gathering
     'PolymarketScanner',
     'PredictionSignal',
     'MarketCategory',
-    # Social Sentiment
     'SocialSentimentAnalyzer',
     'SentimentSignal',
     'Platform',
-    # News Sentiment
     'NewsSentimentScanner',
     'NewsSignal',
     'NewsSource',
-    # Aggregator
+
+    # Main Aggregator
     'SignalAggregator',
     'AggregatedSignal',
     'ExternalSignalConfig',
+    'SignalMode',
 ]
