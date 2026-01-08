@@ -39,6 +39,11 @@ loguru>=0.7.0  # Better logging
 # alpaca-py>=0.10.0  # Alpaca Markets
 # polygon>=1.0.0  # Polygon.io
 
+# Hyperliquid DEX Integration
+requests>=2.28.0  # REST API
+websockets>=10.0  # Real-time streaming
+eth-account>=0.8.0  # EIP-712 signing for Hyperliquid
+
 # Testing
 pytest>=7.4.0
 pytest-cov>=4.1.0

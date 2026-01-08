@@ -248,30 +248,37 @@ class HyperliquidClient:
 
     def get_funding_rate(self, asset: str) -> float:
         """Get current funding rate for an asset"""
-        meta = self._info_request("metaAndAssetCtxs")
-        if isinstance(meta, list) and len(meta) > 1:
-            for ctx in meta[1]:
-                if ctx.get("coin") == asset:
-                    return float(ctx.get("funding", 0))
-        return 0.0
+        rates = self.get_all_funding_rates()
+        return rates.get(asset, 0.0)
 
     def get_all_funding_rates(self) -> Dict[str, float]:
         """Get funding rates for all assets"""
         meta = self._info_request("metaAndAssetCtxs")
         rates = {}
-        if isinstance(meta, list) and len(meta) > 1:
-            for ctx in meta[1]:
-                coin = ctx.get("coin")
-                if coin:
-                    rates[coin] = float(ctx.get("funding", 0))
+
+        if isinstance(meta, list) and len(meta) >= 2:
+            # meta[0] contains universe with asset names
+            # meta[1] contains contexts with funding rates (indexed same as universe)
+            universe = meta[0].get("universe", [])
+            contexts = meta[1]
+
+            for i, ctx in enumerate(contexts):
+                if i < len(universe):
+                    name = universe[i].get("name", "")
+                    funding = ctx.get("funding", "0")
+                    rates[name] = float(funding)
+
         return rates
 
     def get_open_interest(self, asset: str) -> float:
         """Get open interest for an asset"""
         meta = self._info_request("metaAndAssetCtxs")
-        if isinstance(meta, list) and len(meta) > 1:
-            for ctx in meta[1]:
-                if ctx.get("coin") == asset:
+        if isinstance(meta, list) and len(meta) >= 2:
+            universe = meta[0].get("universe", [])
+            contexts = meta[1]
+
+            for i, ctx in enumerate(contexts):
+                if i < len(universe) and universe[i].get("name") == asset:
                     return float(ctx.get("openInterest", 0))
         return 0.0
 

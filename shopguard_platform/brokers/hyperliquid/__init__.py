@@ -19,12 +19,27 @@ Why Hyperliquid:
 - 0% maker fees at high volume tiers
 """
 
-from .client import HyperliquidClient
-from .websocket import HyperliquidWebSocket
-from .broker import HyperliquidBroker
+from .client import HyperliquidClient, OrderSide, OrderType, TimeInForce
+from .websocket import HyperliquidWebSocket, CVDState, Trade
+from .broker import HyperliquidBroker, BrokerConfig, TradeSignal
+from .funding import FundingScanner, FundingConfig, FundingOpportunity
 
 __all__ = [
+    # Client
     'HyperliquidClient',
+    'OrderSide',
+    'OrderType',
+    'TimeInForce',
+    # WebSocket
     'HyperliquidWebSocket',
-    'HyperliquidBroker'
+    'CVDState',
+    'Trade',
+    # Broker
+    'HyperliquidBroker',
+    'BrokerConfig',
+    'TradeSignal',
+    # Funding
+    'FundingScanner',
+    'FundingConfig',
+    'FundingOpportunity',
 ]
