@@ -36,6 +36,7 @@ from .smart_money import SmartMoneyTracker, SmartMoneySignal
 from .sentiment_extremes import SentimentExtremesDetector, ContrarianSignal, FearGreedState
 from .liquidity_trap import LiquidityTrapDetector, TrapSignal, TrapSeverity
 from .news_filter import NewsImpactFilter, FilteredNews, NewsImpact, NewsAction
+from .whale_manipulation import WhaleManipulationDetector, ManipulationSignal, ConfidenceLevel
 
 # Import original components for data gathering (not signal generation)
 from .polymarket import PolymarketScanner
@@ -66,6 +67,7 @@ class ExternalSignalConfig:
     enable_news_filter: bool = True
     enable_polymarket: bool = True
     enable_social: bool = True
+    enable_whale_manipulation: bool = True  # Don't trust whales blindly!
 
     # Weights for signal combination (smart money weighted highest)
     weight_smart_money: float = 0.40      # Whale activity
@@ -101,10 +103,16 @@ class AggregatedSignal:
 
     # Component signals
     smart_money_signal: Optional[float] = None
+    raw_whale_signal: Optional[float] = None  # Before manipulation check
     retail_sentiment: Optional[float] = None
     contrarian_signal: Optional[float] = None
     trap_detected: bool = False
     trap_type: Optional[str] = None
+
+    # Whale manipulation detection
+    manipulation_detected: bool = False
+    manipulation_type: Optional[str] = None
+    whale_confidence: float = 1.0  # 0-1, how much we trust the whale signal
 
     # Analysis
     whale_retail_divergence: float = 0
@@ -126,10 +134,14 @@ class AggregatedSignal:
             "confidence": self.confidence,
             "urgency": self.urgency,
             "smart_money_signal": self.smart_money_signal,
+            "raw_whale_signal": self.raw_whale_signal,
             "retail_sentiment": self.retail_sentiment,
             "whale_retail_divergence": self.whale_retail_divergence,
             "trap_detected": self.trap_detected,
             "trap_type": self.trap_type,
+            "manipulation_detected": self.manipulation_detected,
+            "manipulation_type": self.manipulation_type,
+            "whale_confidence": self.whale_confidence,
             "fear_greed": self.fear_greed_value,
             "is_extreme": self.is_extreme_sentiment,
             "mode": self.mode.value,
@@ -172,6 +184,7 @@ class SignalAggregator:
         self.sentiment_detector: Optional[SentimentExtremesDetector] = None
         self.trap_detector: Optional[LiquidityTrapDetector] = None
         self.news_filter: Optional[NewsImpactFilter] = None
+        self.whale_manipulation: Optional[WhaleManipulationDetector] = None
 
         # Initialize data gathering components
         self.polymarket: Optional[PolymarketScanner] = None
@@ -191,6 +204,9 @@ class SignalAggregator:
 
         if config.enable_news_filter:
             self.news_filter = NewsImpactFilter()
+
+        if config.enable_whale_manipulation:
+            self.whale_manipulation = WhaleManipulationDetector()
 
         if config.enable_polymarket:
             self.polymarket = PolymarketScanner()
@@ -365,13 +381,45 @@ class SignalAggregator:
 
         # 3. Get smart money signal
         smart_money_direction = 0
+        raw_whale_direction = 0
+        whale_confidence = 1.0
+        manipulation_detected = False
+        manipulation_reason = ""
+
         if self.smart_money:
             sm_signal = self.smart_money.get_signal(asset, retail_sentiment)
             if sm_signal:
-                smart_money_direction = sm_signal.direction
+                raw_whale_direction = sm_signal.direction
+
+                # 3.5. CRITICAL: Check for whale manipulation!
+                # Whales know they're being watched - don't follow blindly
+                if self.whale_manipulation:
+                    manipulation_result = self.whale_manipulation.analyze_whale_activity(
+                        asset=asset,
+                        whale_direction=raw_whale_direction,
+                        is_highly_visible=sm_signal.confidence > 0.8  # High confidence = likely visible
+                    )
+
+                    # Use adjusted direction (applies skepticism)
+                    smart_money_direction = manipulation_result.adjusted_direction
+                    whale_confidence = manipulation_result.confidence.value / 5.0
+
+                    if manipulation_result.is_manipulation:
+                        manipulation_detected = True
+                        manipulation_reason = manipulation_result.recommendation
+                        reasons.append(f"⚠️ WHALE MANIPULATION: {manipulation_result.manipulation_type.value}")
+                    elif manipulation_result.confidence.value <= 2:
+                        reasons.append(f"Low whale confidence ({manipulation_result.confidence.name})")
+                    else:
+                        reasons.append(f"Smart Money: {sm_signal.signal_type} (verified)")
+                else:
+                    # No manipulation detector - use raw signal
+                    smart_money_direction = raw_whale_direction
+                    reasons.append(f"Smart Money: {sm_signal.signal_type}")
+
+                # Add to components with weight adjusted by confidence
                 components.append(smart_money_direction)
-                weights.append(self.config.weight_smart_money)
-                reasons.append(f"Smart Money: {sm_signal.signal_type}")
+                weights.append(self.config.weight_smart_money * whale_confidence)
 
         # 4. Calculate whale-retail divergence
         divergence = smart_money_direction - retail_sentiment
@@ -486,12 +534,19 @@ class SignalAggregator:
             if trap_type in ["fomo_trap", "panic_trap"]:
                 recommendation = f"⚠️ {trap_recommendation}"
 
+        # Block trade if whale manipulation detected
+        if manipulation_detected:
+            confidence *= 0.2  # Even heavier penalty for manipulation
+            recommendation = f"🐋 {manipulation_reason}"
+
         # Calculate urgency
         urgency = 0
         if is_extreme:
             urgency = 0.7
         if trap_detected:
             urgency = 0.9  # High urgency to avoid trap
+        if manipulation_detected:
+            urgency = 0.95  # Highest urgency - whale manipulation!
 
         # Create aggregated signal
         signal = AggregatedSignal(
@@ -500,10 +555,14 @@ class SignalAggregator:
             confidence=confidence,
             urgency=urgency,
             smart_money_signal=smart_money_direction,
+            raw_whale_signal=raw_whale_direction,
             retail_sentiment=retail_sentiment,
             contrarian_signal=contrarian_direction,
             trap_detected=trap_detected,
             trap_type=trap_type,
+            manipulation_detected=manipulation_detected,
+            manipulation_type=manipulation_reason.split(":")[0] if manipulation_detected else None,
+            whale_confidence=whale_confidence,
             whale_retail_divergence=divergence,
             fear_greed_value=fear_greed,
             is_extreme_sentiment=is_extreme,
@@ -546,8 +605,8 @@ class SignalAggregator:
         if signal is None or signal.confidence < self.config.min_confidence:
             return None
 
-        # If trap detected, reduce signal or block
-        if signal.trap_detected:
+        # If trap or manipulation detected, reduce signal or block
+        if signal.trap_detected or signal.manipulation_detected:
             direction = 0  # Block the signal
             confidence = 0.1
         else:
@@ -559,9 +618,12 @@ class SignalAggregator:
             "external_confidence": confidence,
             "external_urgency": signal.urgency,
             "smart_money_signal": signal.smart_money_signal or 0,
+            "raw_whale_signal": signal.raw_whale_signal or 0,
             "retail_sentiment": signal.retail_sentiment or 0,
             "divergence": signal.whale_retail_divergence,
             "trap_detected": 1 if signal.trap_detected else 0,
+            "manipulation_detected": 1 if signal.manipulation_detected else 0,
+            "whale_confidence": signal.whale_confidence,
             "fear_greed": signal.fear_greed_value,
         }
 
@@ -576,7 +638,15 @@ class SignalAggregator:
         if signal.trap_detected:
             return False, f"TRAP: {signal.trap_type} - {signal.recommendation}"
 
-        # Check alignment with smart money
+        # Check for whale manipulation - CRITICAL!
+        if signal.manipulation_detected:
+            return False, f"🐋 WHALE MANIPULATION: {signal.manipulation_type} - Don't be their exit liquidity!"
+
+        # Check whale confidence - if too low, warn but allow
+        if signal.whale_confidence < 0.4:
+            logger.warning(f"Low whale confidence ({signal.whale_confidence:.0%}) - proceed with extra caution")
+
+        # Check alignment with smart money (adjusted for manipulation)
         intended = 1 if direction.upper() == "BUY" else -1
 
         if signal.smart_money_signal:
@@ -591,7 +661,7 @@ class SignalAggregator:
                (signal.direction < 0 and direction.upper() == "BUY"):
                 return False, f"Trading against contrarian signal (F&G: {signal.fear_greed_value:.0f})"
 
-        return True, "Trade aligned with smart money"
+        return True, "Trade aligned with verified smart money"
 
     def get_summary(self) -> Dict[str, Any]:
         """Get summary of all signals"""
@@ -602,6 +672,7 @@ class SignalAggregator:
             "assets": {},
             "overall_sentiment": 0,
             "trap_count": 0,
+            "manipulation_count": 0,
             "extreme_count": 0
         }
 
@@ -612,15 +683,20 @@ class SignalAggregator:
                     "direction": signal.direction,
                     "confidence": signal.confidence,
                     "smart_money": signal.smart_money_signal,
+                    "raw_whale": signal.raw_whale_signal,
+                    "whale_confidence": signal.whale_confidence,
                     "retail": signal.retail_sentiment,
                     "divergence": signal.whale_retail_divergence,
                     "trap": signal.trap_type,
+                    "manipulation": signal.manipulation_type,
                     "recommendation": signal.recommendation
                 }
 
                 summary["overall_sentiment"] += signal.direction
                 if signal.trap_detected:
                     summary["trap_count"] += 1
+                if signal.manipulation_detected:
+                    summary["manipulation_count"] += 1
                 if signal.is_extreme_sentiment:
                     summary["extreme_count"] += 1
 

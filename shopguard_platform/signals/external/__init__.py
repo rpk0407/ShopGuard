@@ -49,6 +49,13 @@ from .news_filter import (
     NewsAction,
     NewsFilterConfig
 )
+from .whale_manipulation import (
+    WhaleManipulationDetector,
+    ManipulationSignal,
+    ManipulationType,
+    ConfidenceLevel,
+    WhaleActivity
+)
 
 # Data Gathering Components (Secondary)
 from .polymarket import PolymarketScanner, PredictionSignal, MarketCategory
@@ -90,6 +97,13 @@ __all__ = [
     'NewsImpact',
     'NewsAction',
     'NewsFilterConfig',
+
+    # Whale Manipulation Detection
+    'WhaleManipulationDetector',
+    'ManipulationSignal',
+    'ManipulationType',
+    'ConfidenceLevel',
+    'WhaleActivity',
 
     # Data Gathering
     'PolymarketScanner',
