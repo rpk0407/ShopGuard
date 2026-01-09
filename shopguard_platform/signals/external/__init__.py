@@ -56,6 +56,12 @@ from .whale_manipulation import (
     ConfidenceLevel,
     WhaleActivity
 )
+from .signal_quality import (
+    SignalQualityAnalyzer,
+    QualityScore,
+    SignalQuality,
+    SignalInput
+)
 
 # Data Gathering Components (Secondary)
 from .polymarket import PolymarketScanner, PredictionSignal, MarketCategory
@@ -104,6 +110,12 @@ __all__ = [
     'ManipulationType',
     'ConfidenceLevel',
     'WhaleActivity',
+
+    # Signal Quality Analysis
+    'SignalQualityAnalyzer',
+    'QualityScore',
+    'SignalQuality',
+    'SignalInput',
 
     # Data Gathering
     'PolymarketScanner',

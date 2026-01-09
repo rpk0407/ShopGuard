@@ -18,13 +18,34 @@ Data Sources:
 import logging
 import time
 import re
+import random
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional, Callable
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logger = logging.getLogger(__name__)
+
+
+def create_retry_session(retries: int = 3, backoff_factor: float = 1.0) -> requests.Session:
+    """Create a requests session with retry logic for rate-limited APIs"""
+    session = requests.Session()
+    retry = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["HEAD", "GET", "OPTIONS"],
+        respect_retry_after_header=True
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
 
 
 class Platform(Enum):
@@ -142,10 +163,14 @@ class SocialSentimentAnalyzer:
 
         self.last_refresh: float = 0
 
+        # Rate limiting
+        self._reddit_last_request: float = 0
+        self._reddit_min_interval: float = 2.0  # Reddit rate limit: wait 2s between requests
+
         # Callbacks
         self.on_signal: Optional[Callable[[SentimentSignal], None]] = None
 
-        self._session = requests.Session()
+        self._session = create_retry_session()
 
     def _analyze_sentiment(self, text: str) -> float:
         """
@@ -203,13 +228,25 @@ class SocialSentimentAnalyzer:
             logger.warning(f"LunarCrush API error: {e}")
             return None
 
+    def _wait_for_rate_limit(self):
+        """Wait if needed to respect Reddit rate limits"""
+        now = time.time()
+        elapsed = now - self._reddit_last_request
+        if elapsed < self._reddit_min_interval:
+            wait_time = self._reddit_min_interval - elapsed + random.uniform(0.1, 0.5)
+            time.sleep(wait_time)
+        self._reddit_last_request = time.time()
+
     def _fetch_reddit_posts(self, asset: str, limit: int = 100) -> List[SocialPost]:
-        """Fetch recent posts from Reddit (requires credentials)"""
+        """Fetch recent posts from Reddit with rate limiting"""
         posts = []
 
         # Without credentials, we can still fetch public JSON feeds
         for subreddit in self.REDDIT_SUBREDDITS[:3]:  # Limit subreddits
             try:
+                # Rate limit before each request
+                self._wait_for_rate_limit()
+
                 url = f"https://www.reddit.com/r/{subreddit}/search.json"
                 response = self._session.get(
                     url,
@@ -219,9 +256,14 @@ class SocialSentimentAnalyzer:
                         "limit": limit // 3,
                         "t": "day"
                     },
-                    headers={"User-Agent": "TITAN-Trading/1.0"},
-                    timeout=10
+                    headers={"User-Agent": "TITAN-Trading/1.0 (by /u/TitanBot)"},
+                    timeout=15
                 )
+
+                if response.status_code == 429:
+                    logger.warning(f"Reddit rate limited for r/{subreddit}, waiting...")
+                    time.sleep(5)
+                    continue
 
                 if response.status_code == 200:
                     data = response.json()

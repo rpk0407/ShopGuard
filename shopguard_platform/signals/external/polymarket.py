@@ -18,8 +18,27 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Callable
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logger = logging.getLogger(__name__)
+
+
+def create_retry_session(retries: int = 3, backoff_factor: float = 0.5) -> requests.Session:
+    """Create a requests session with retry logic"""
+    session = requests.Session()
+    retry = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["HEAD", "GET", "OPTIONS"]
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
 
 
 class MarketCategory(Enum):
@@ -134,7 +153,7 @@ class PolymarketScanner:
             MarketCategory.TECH: ["ETH", "SOL"],  # Tech sentiment
         }
 
-        self._session = requests.Session()
+        self._session = create_retry_session()
         self._session.headers.update({
             "Accept": "application/json",
             "User-Agent": "TITAN-Trading/1.0"
@@ -142,22 +161,37 @@ class PolymarketScanner:
 
     def _fetch_markets(self) -> List[dict]:
         """Fetch all active markets from Polymarket"""
-        try:
-            # Use gamma API for market discovery
-            response = self._session.get(
-                f"{self.GAMMA_URL}/markets",
-                params={
-                    "active": "true",
-                    "closed": "false",
-                    "limit": 100
-                },
-                timeout=10
-            )
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            logger.error(f"Failed to fetch markets: {e}")
-            return []
+        # Try multiple endpoints with fallback
+        endpoints = [
+            (f"{self.GAMMA_URL}/markets", {"active": "true", "closed": "false", "limit": 100}),
+            (f"{self.BASE_URL}/markets", {"next_cursor": "", "limit": "100"}),
+        ]
+
+        for url, params in endpoints:
+            try:
+                response = self._session.get(url, params=params, timeout=15)
+
+                if response.status_code == 200:
+                    data = response.json()
+                    # Handle different response formats
+                    if isinstance(data, list):
+                        return data
+                    elif isinstance(data, dict):
+                        return data.get("data", data.get("markets", []))
+                    return []
+
+            except requests.exceptions.Timeout:
+                logger.warning(f"Timeout fetching from {url}")
+                continue
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"Request error for {url}: {e}")
+                continue
+            except Exception as e:
+                logger.error(f"Failed to fetch markets from {url}: {e}")
+                continue
+
+        logger.error("All Polymarket endpoints failed")
+        return []
 
     def _fetch_market_prices(self, token_ids: List[str]) -> Dict[str, dict]:
         """Fetch current prices for markets"""
@@ -216,6 +250,10 @@ class PolymarketScanner:
 
         for market_data in raw_markets:
             try:
+                # Skip if not a dict (API format changed)
+                if not isinstance(market_data, dict):
+                    continue
+
                 question = market_data.get("question", "")
                 category = self._categorize_market(question)
 

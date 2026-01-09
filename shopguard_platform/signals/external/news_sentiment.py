@@ -25,9 +25,60 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional, Callable, Set
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from xml.etree import ElementTree
+from email.utils import parsedate_to_datetime
 
 logger = logging.getLogger(__name__)
+
+
+def create_retry_session(retries: int = 3, backoff_factor: float = 0.5) -> requests.Session:
+    """Create a requests session with retry logic"""
+    session = requests.Session()
+    retry = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["HEAD", "GET", "OPTIONS"]
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
+
+
+def parse_rss_date(date_str: str) -> Optional[datetime]:
+    """Parse various RSS date formats robustly"""
+    if not date_str:
+        return None
+
+    # Try standard RFC 2822 format first (email.utils)
+    try:
+        return parsedate_to_datetime(date_str).replace(tzinfo=None)
+    except Exception:
+        pass
+
+    # Try various common formats
+    formats = [
+        "%a, %d %b %Y %H:%M:%S %z",
+        "%a, %d %b %Y %H:%M:%S %Z",
+        "%Y-%m-%dT%H:%M:%S%z",
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%d %H:%M:%S",
+        "%d %b %Y %H:%M:%S %z",
+    ]
+
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(date_str, fmt)
+            return dt.replace(tzinfo=None)
+        except Exception:
+            continue
+
+    return None
 
 
 class NewsSource(Enum):
@@ -189,9 +240,10 @@ class NewsSentimentScanner:
         self.on_signal: Optional[Callable[[NewsSignal], None]] = None
         self.on_breaking_news: Optional[Callable[[NewsArticle], None]] = None
 
-        self._session = requests.Session()
+        self._session = create_retry_session()
         self._session.headers.update({
-            "User-Agent": "TITAN-Trading/1.0"
+            "User-Agent": "TITAN-Trading/1.0",
+            "Accept": "application/rss+xml, application/xml, text/xml"
         })
 
     def _generate_article_id(self, title: str, source: str) -> str:
@@ -226,17 +278,12 @@ class NewsSentimentScanner:
                     link_el = item.find("link")
                     url = link_el.text if link_el is not None else ""
 
-                    pubdate_el = item.find("pubDate")
+                    # Try multiple date field names
+                    pubdate_el = item.find("pubDate") or item.find("published") or item.find("updated")
+                    published = None
                     if pubdate_el is not None and pubdate_el.text:
-                        # Parse various date formats
-                        try:
-                            published = datetime.strptime(
-                                pubdate_el.text,
-                                "%a, %d %b %Y %H:%M:%S %z"
-                            ).replace(tzinfo=None)
-                        except:
-                            published = datetime.now()
-                    else:
+                        published = parse_rss_date(pubdate_el.text)
+                    if published is None:
                         published = datetime.now()
 
                     # Skip old articles
