@@ -37,6 +37,7 @@ from .sentiment_extremes import SentimentExtremesDetector, ContrarianSignal, Fea
 from .liquidity_trap import LiquidityTrapDetector, TrapSignal, TrapSeverity
 from .news_filter import NewsImpactFilter, FilteredNews, NewsImpact, NewsAction
 from .whale_manipulation import WhaleManipulationDetector, ManipulationSignal, ConfidenceLevel
+from .signal_quality import SignalQualityAnalyzer, SignalInput, SignalQuality
 
 # Import original components for data gathering (not signal generation)
 from .polymarket import PolymarketScanner
@@ -68,6 +69,10 @@ class ExternalSignalConfig:
     enable_polymarket: bool = True
     enable_social: bool = True
     enable_whale_manipulation: bool = True  # Don't trust whales blindly!
+    enable_quality_check: bool = True       # Cross-validate signals
+
+    # Minimum quality required for trading
+    min_quality: SignalQuality = SignalQuality.MODERATE
 
     # Weights for signal combination (smart money weighted highest)
     weight_smart_money: float = 0.40      # Whale activity
@@ -114,6 +119,11 @@ class AggregatedSignal:
     manipulation_type: Optional[str] = None
     whale_confidence: float = 1.0  # 0-1, how much we trust the whale signal
 
+    # Signal quality (cross-validation)
+    signal_quality: Optional[str] = None  # EXCELLENT, GOOD, MODERATE, LOW, UNRELIABLE
+    quality_score: float = 0.5
+    position_multiplier: float = 1.0  # Reduce position based on quality
+
     # Analysis
     whale_retail_divergence: float = 0
     fear_greed_value: float = 50
@@ -142,6 +152,9 @@ class AggregatedSignal:
             "manipulation_detected": self.manipulation_detected,
             "manipulation_type": self.manipulation_type,
             "whale_confidence": self.whale_confidence,
+            "signal_quality": self.signal_quality,
+            "quality_score": self.quality_score,
+            "position_multiplier": self.position_multiplier,
             "fear_greed": self.fear_greed_value,
             "is_extreme": self.is_extreme_sentiment,
             "mode": self.mode.value,
@@ -185,6 +198,7 @@ class SignalAggregator:
         self.trap_detector: Optional[LiquidityTrapDetector] = None
         self.news_filter: Optional[NewsImpactFilter] = None
         self.whale_manipulation: Optional[WhaleManipulationDetector] = None
+        self.quality_analyzer: Optional[SignalQualityAnalyzer] = None
 
         # Initialize data gathering components
         self.polymarket: Optional[PolymarketScanner] = None
@@ -207,6 +221,9 @@ class SignalAggregator:
 
         if config.enable_whale_manipulation:
             self.whale_manipulation = WhaleManipulationDetector()
+
+        if config.enable_quality_check:
+            self.quality_analyzer = SignalQualityAnalyzer()
 
         if config.enable_polymarket:
             self.polymarket = PolymarketScanner()
@@ -548,6 +565,49 @@ class SignalAggregator:
         if manipulation_detected:
             urgency = 0.95  # Highest urgency - whale manipulation!
 
+        # Quality check - cross-validate signals from multiple sources
+        signal_quality = None
+        quality_score = 0.5
+        position_multiplier = 1.0
+
+        if self.quality_analyzer:
+            now = datetime.now()
+
+            # Add component signals to quality analyzer
+            if smart_money_direction != 0:
+                self.quality_analyzer.add_signal(
+                    asset,
+                    SignalInput("smart_money", smart_money_direction, whale_confidence, now)
+                )
+
+            if contrarian_direction != 0:
+                self.quality_analyzer.add_signal(
+                    asset,
+                    SignalInput("sentiment", contrarian_direction, 0.7 if is_extreme else 0.5, now)
+                )
+
+            if retail_sentiment != 0:
+                self.quality_analyzer.add_signal(
+                    asset,
+                    SignalInput("social", -retail_sentiment if self.config.mode == SignalMode.CONTRARIAN else retail_sentiment, 0.6, now)
+                )
+
+            # Assess quality
+            quality_result = self.quality_analyzer.assess_quality(asset)
+            signal_quality = quality_result.quality.value
+            quality_score = quality_result.overall_score
+            position_multiplier = self.quality_analyzer.get_position_multiplier(asset)
+
+            # Adjust confidence based on quality
+            confidence *= position_multiplier
+
+            # Add quality to reasons
+            if quality_result.quality in [SignalQuality.LOW, SignalQuality.UNRELIABLE]:
+                reasons.append(f"⚠️ Low signal quality ({signal_quality})")
+                recommendation = f"LOW QUALITY: {quality_result.recommendation}"
+            elif quality_result.quality == SignalQuality.EXCELLENT:
+                reasons.append(f"✅ Excellent signal quality")
+
         # Create aggregated signal
         signal = AggregatedSignal(
             asset=asset,
@@ -563,6 +623,9 @@ class SignalAggregator:
             manipulation_detected=manipulation_detected,
             manipulation_type=manipulation_reason.split(":")[0] if manipulation_detected else None,
             whale_confidence=whale_confidence,
+            signal_quality=signal_quality,
+            quality_score=quality_score,
+            position_multiplier=position_multiplier,
             whale_retail_divergence=divergence,
             fear_greed_value=fear_greed,
             is_extreme_sentiment=is_extreme,
@@ -625,6 +688,9 @@ class SignalAggregator:
             "manipulation_detected": 1 if signal.manipulation_detected else 0,
             "whale_confidence": signal.whale_confidence,
             "fear_greed": signal.fear_greed_value,
+            "signal_quality": signal.signal_quality or "unknown",
+            "quality_score": signal.quality_score,
+            "position_multiplier": signal.position_multiplier,
         }
 
     def is_safe_to_trade(self, asset: str, direction: str) -> tuple[bool, str]:
@@ -641,6 +707,13 @@ class SignalAggregator:
         # Check for whale manipulation - CRITICAL!
         if signal.manipulation_detected:
             return False, f"🐋 WHALE MANIPULATION: {signal.manipulation_type} - Don't be their exit liquidity!"
+
+        # Check signal quality - block unreliable signals
+        if signal.signal_quality == "unreliable":
+            return False, "UNRELIABLE: Signal quality too low - insufficient source agreement"
+
+        if signal.signal_quality == "low" and signal.position_multiplier < 0.2:
+            return False, f"LOW QUALITY: {signal.signal_quality} - position multiplier {signal.position_multiplier:.0%}"
 
         # Check whale confidence - if too low, warn but allow
         if signal.whale_confidence < 0.4:
