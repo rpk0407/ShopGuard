@@ -65,3 +65,9 @@ aiohttp>=3.9.0  # Async HTTP
 python-telegram-bot>=20.0  # Telegram alerts
 twilio>=8.10.0  # SMS alerts
 sendgrid>=6.11.0  # Email alerts
+
+# Crypto Exchange APIs
+hyperliquid-python-sdk>=0.5.0  # Hyperliquid DEX integration
+ccxt>=4.2.0  # Multi-exchange support (backup)
+web3>=6.15.0  # Ethereum/blockchain interactions
+eth-account>=0.10.0  # Ethereum account management
