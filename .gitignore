@@ -75,6 +75,7 @@ credentials.json
 secrets.yaml
 config/local.yaml
 config/production.yaml
+config/settings.yaml  # Real config with API keys
 
 # Database
 *.db

@@ -1,0 +1,80 @@
+# TITAN Trading System Configuration
+# ====================================
+# Copy this file to settings.yaml and fill in your API keys
+# NEVER commit settings.yaml to version control!
+
+# Trading Configuration
+trading:
+  testnet: true  # Set to false for production
+  assets:
+    - BTC
+    - ETH
+  min_confidence: 0.6
+  max_position_pct: 0.25
+  max_leverage: 3
+  max_concurrent_positions: 3
+
+# Hyperliquid Configuration
+hyperliquid:
+  private_key: ""  # Your wallet private key (keep secret!)
+  testnet: true
+
+# External Alpha Sources
+external_alpha:
+  enabled: true
+  weight: 0.25  # Weight of external signals vs technical
+
+  # Polymarket (no API key needed)
+  polymarket:
+    enabled: true
+
+  # Social Sentiment
+  social:
+    enabled: true
+    # Twitter API (optional)
+    twitter_bearer_token: ""
+    # Reddit (no API key needed for public data)
+    reddit_enabled: true
+    # LunarCrush (optional)
+    lunarcrush_api_key: ""
+
+  # News Sentiment
+  news:
+    enabled: true
+    # NewsAPI (optional - for more sources)
+    newsapi_key: ""
+    # Free RSS feeds are used by default
+
+# Smart Money Protection
+smart_money_protection:
+  whale_manipulation_detection: true
+  liquidity_trap_detection: true
+  block_on_manipulation: true  # Block trades when manipulation detected
+
+# Entropy/Technical Analysis
+technical_analysis:
+  entropy_filter: true
+  entropy_lookback: 100
+  hurst_threshold: 0.55
+  entropy_threshold: 2.5
+
+# Risk Management
+risk:
+  atr_stop_multiplier: 1.5
+  atr_target_multiplier: 3.0
+  max_risk_per_trade: 0.02  # 2% max risk per trade
+
+# Funding Arbitrage (Passive Income)
+funding_arbitrage:
+  enabled: true
+  min_funding_rate: 0.0005  # 0.05% per 8h
+
+# Monitoring
+monitoring:
+  position_check_interval: 5  # seconds
+  signal_cooldown: 60  # seconds between signals per asset
+
+# Logging
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR
+  file: logs/titan.log

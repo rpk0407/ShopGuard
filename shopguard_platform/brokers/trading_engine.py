@@ -44,9 +44,25 @@ try:
     from ..signals.external import (
         SignalAggregator, AggregatedSignal, ExternalSignalConfig
     )
+    from ..signals.external.whale_manipulation import WhaleManipulationDetector
+    from ..signals.external.liquidity_trap import LiquidityTrapDetector
     EXTERNAL_SIGNALS_AVAILABLE = True
 except ImportError:
     EXTERNAL_SIGNALS_AVAILABLE = False
+
+# Import entropy filter for real calculations
+try:
+    from ...titan_mvp.signals.entropy_filter import EntropyFilter
+    ENTROPY_AVAILABLE = True
+except ImportError:
+    try:
+        # Alternative import path
+        import sys
+        sys.path.insert(0, '/home/user/ShopGuard')
+        from titan_mvp.signals.entropy_filter import EntropyFilter
+        ENTROPY_AVAILABLE = True
+    except ImportError:
+        ENTROPY_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +107,15 @@ class EngineConfig:
     # Funding Arbitrage (Passive Income Layer)
     enable_funding_arbitrage: bool = True
     min_funding_rate: float = 0.0005  # 0.05% per 8h
+
+    # Smart Money Protection (Don't be exit liquidity!)
+    enable_whale_manipulation_detection: bool = True
+    enable_liquidity_trap_detection: bool = True
+    block_on_manipulation: bool = True  # Block trades when manipulation detected
+
+    # Entropy/Hurst Calculation
+    enable_entropy_filter: bool = True
+    entropy_lookback: int = 100  # Ticks for entropy calculation
 
     # Monitoring
     position_check_interval: int = 5  # seconds
@@ -149,6 +174,14 @@ class TitanTradingEngine:
         self.brain: Optional['TitanBrain'] = None
         self.funding_scanner: Optional[FundingScanner] = None
         self.external_signals: Optional['SignalAggregator'] = None
+
+        # Smart Money Protection Components
+        self.whale_detector: Optional['WhaleManipulationDetector'] = None
+        self.trap_detector: Optional['LiquidityTrapDetector'] = None
+        self.entropy_filter: Optional['EntropyFilter'] = None
+
+        # Entropy filters per asset
+        self._entropy_filters: Dict[str, 'EntropyFilter'] = {}
 
         # State tracking
         self._last_signal_time: Dict[str, float] = {}
@@ -236,6 +269,25 @@ class TitanTradingEngine:
                 logger.info("External signals initialized (Polymarket, Social, News)")
             elif self.config.enable_external_signals:
                 logger.warning("External signals requested but module not available")
+
+            # Initialize Smart Money Protection (Don't be exit liquidity!)
+            if self.config.enable_whale_manipulation_detection and EXTERNAL_SIGNALS_AVAILABLE:
+                self.whale_detector = WhaleManipulationDetector()
+                logger.info("🐋 Whale Manipulation Detector initialized")
+
+            if self.config.enable_liquidity_trap_detection and EXTERNAL_SIGNALS_AVAILABLE:
+                self.trap_detector = LiquidityTrapDetector()
+                logger.info("🪤 Liquidity Trap Detector initialized")
+
+            # Initialize Entropy Filter for real entropy/hurst calculations
+            if self.config.enable_entropy_filter and ENTROPY_AVAILABLE:
+                for asset in self.config.assets:
+                    self._entropy_filters[asset] = EntropyFilter(
+                        lookback=self.config.entropy_lookback
+                    )
+                logger.info("📊 Entropy Filter initialized for real entropy/hurst")
+            elif self.config.enable_entropy_filter:
+                logger.warning("Entropy filter requested but module not available")
 
             # Start background tasks
             self._running = True
@@ -385,7 +437,7 @@ class TitanTradingEngine:
         price: float,
         cvd_state: Optional[CVDState]
     ) -> Optional['TradingSignal']:
-        """Generate trading signal using TitanBrain + CVD + External Signals"""
+        """Generate trading signal using TitanBrain + CVD + External Signals + Smart Money Protection"""
 
         # Calculate ATR (simplified - would use proper candle data)
         atr = self._calculate_atr(asset, price)
@@ -396,7 +448,82 @@ class TitanTradingEngine:
         if self.external_signals:
             external_data = self.external_signals.get_signal_for_titan(asset)
 
-        # Build tick data for TitanBrain
+        # ========================================
+        # SMART MONEY PROTECTION CHECKS
+        # ========================================
+
+        # Check for whale manipulation
+        manipulation_detected = False
+        manipulation_reason = ""
+        if self.whale_detector and external_data:
+            whale_direction = external_data.get('smart_money_direction', 0)
+            is_visible = external_data.get('whale_visible', False)
+            manipulation_result = self.whale_detector.analyze_whale_activity(
+                asset=asset,
+                whale_direction=whale_direction,
+                is_highly_visible=is_visible
+            )
+            if manipulation_result.is_manipulation:
+                manipulation_detected = True
+                manipulation_reason = f"Whale manipulation: {manipulation_result.manipulation_type}"
+                logger.warning(f"🐋 {asset}: {manipulation_reason}")
+
+        # Check for liquidity trap
+        trap_detected = False
+        trap_reason = ""
+        if self.trap_detector and external_data:
+            retail_direction = external_data.get('retail_sentiment', 0)
+            whale_direction = external_data.get('smart_money_direction', 0)
+            price_momentum = external_data.get('price_momentum', 0)
+
+            trap_result = self.trap_detector.detect_trap(
+                asset=asset,
+                retail_sentiment=retail_direction,
+                smart_money_flow=whale_direction,
+                price_momentum=price_momentum,
+                volume_spike=external_data.get('volume_spike', False)
+            )
+            if trap_result.is_trap:
+                trap_detected = True
+                trap_reason = f"Liquidity trap: {trap_result.trap_type}"
+                logger.warning(f"🪤 {asset}: {trap_reason}")
+
+        # Block signal if manipulation detected and configured to block
+        if self.config.block_on_manipulation and (manipulation_detected or trap_detected):
+            reason = manipulation_reason or trap_reason
+            logger.info(f"⛔ {asset}: Signal BLOCKED - {reason}")
+            return None
+
+        # ========================================
+        # CALCULATE REAL ENTROPY/HURST
+        # ========================================
+
+        entropy_value = 2.0  # Default
+        hurst_value = 0.5    # Default
+        can_trade_entropy = True
+
+        if asset in self._entropy_filters:
+            # Update entropy filter with new price
+            self._entropy_filters[asset].update(price)
+            entropy_signal = self._entropy_filters[asset].get_signal()
+
+            entropy_value = entropy_signal.entropy
+            hurst_value = entropy_signal.hurst
+            can_trade_entropy = entropy_signal.can_trade
+
+            if not can_trade_entropy:
+                logger.debug(f"📊 {asset}: Entropy filter says NO TRADE (regime: {entropy_signal.regime.value})")
+
+        # Calculate viral K from CVD momentum
+        viral_k = 1.0
+        if cvd_state and cvd_state.buy_volume > 0:
+            # Viral K approximation from buy/sell pressure
+            total_vol = cvd_state.buy_volume + cvd_state.sell_volume
+            if total_vol > 0:
+                buy_ratio = cvd_state.buy_volume / total_vol
+                viral_k = 0.5 + buy_ratio  # Range 0.5 to 1.5
+
+        # Build tick data for TitanBrain with REAL values
         tick_data = {
             'asset': asset,
             'price': price,
@@ -405,13 +532,17 @@ class TitanTradingEngine:
             'cvd': cvd_state.cvd if cvd_state else 0,
             'cvd_buy_volume': cvd_state.buy_volume if cvd_state else 0,
             'cvd_sell_volume': cvd_state.sell_volume if cvd_state else 0,
-            # Will be filled by TitanBrain or estimated
-            'entropy': 2.0,  # Placeholder
-            'hurst': 0.5,    # Placeholder
-            'viral_k': 1.0,  # Placeholder
+            # REAL entropy/hurst values (not placeholders!)
+            'entropy': entropy_value,
+            'hurst': hurst_value,
+            'viral_k': viral_k,
             # External signals
             'external_direction': external_data.get('external_direction', 0) if external_data else 0,
             'external_confidence': external_data.get('external_confidence', 0) if external_data else 0,
+            # Smart money protection flags
+            'manipulation_detected': manipulation_detected,
+            'trap_detected': trap_detected,
+            'can_trade_entropy': can_trade_entropy,
         }
 
         # Get CVD divergence signal
