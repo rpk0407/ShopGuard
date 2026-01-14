@@ -374,18 +374,28 @@ class HyperliquidAdapter:
             return None
 
         try:
-            # Build order request
-            order = {
-                'coin': coin,
-                'is_buy': is_buy,
-                'sz': size,
-                'limit_px': limit_price,
-                'order_type': {'limit': limit_price} if order_type == 'limit' else {'market': {}},
-                'reduce_only': reduce_only
-            }
-
-            if post_only:
-                order['order_type']['limit']['tif'] = 'Alo'  # Add liquidity only
+            # Build order request - structure per Hyperliquid SDK
+            if order_type == 'limit':
+                # Limit order structure
+                tif = 'Alo' if post_only else 'Gtc'  # Alo = Add liquidity only (maker-only)
+                order = {
+                    'coin': coin,
+                    'is_buy': is_buy,
+                    'sz': size,
+                    'limit_px': limit_price,
+                    'order_type': {'limit': {'tif': tif}},
+                    'reduce_only': reduce_only
+                }
+            else:
+                # Market order (converted to aggressive limit by exchange)
+                order = {
+                    'coin': coin,
+                    'is_buy': is_buy,
+                    'sz': size,
+                    'limit_px': limit_price,  # Still needs limit price for market orders
+                    'order_type': {},  # Empty dict for market orders
+                    'reduce_only': reduce_only
+                }
 
             if client_order_id:
                 order['cloid'] = client_order_id
@@ -406,7 +416,8 @@ class HyperliquidAdapter:
         coin: str,
         is_buy: bool,
         size: float,
-        slippage_tolerance: float = 0.05
+        slippage_tolerance: float = 0.05,
+        reduce_only: bool = False
     ) -> Optional[Dict]:
         """
         Place a market order (converted to aggressive limit order)
@@ -416,6 +427,7 @@ class HyperliquidAdapter:
             is_buy: True for buy, False for sell
             size: Order size
             slippage_tolerance: Maximum slippage (e.g., 0.05 = 5%)
+            reduce_only: Only reduce existing position (for closing)
         """
         try:
             # Get current market price
@@ -436,7 +448,8 @@ class HyperliquidAdapter:
                 is_buy=is_buy,
                 size=size,
                 limit_price=limit_price,
-                order_type="limit"
+                order_type="limit",
+                reduce_only=reduce_only
             )
 
         except Exception as e:
@@ -543,7 +556,8 @@ class HyperliquidAdapter:
                 return self.place_market_order(
                     coin=coin,
                     is_buy=is_buy,
-                    size=position.size
+                    size=position.size,
+                    reduce_only=True
                 )
 
         except Exception as e:
