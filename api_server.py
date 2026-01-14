@@ -28,6 +28,10 @@ from enum import Enum
 import hashlib
 import secrets
 import uvicorn
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # =============================================================================
 # Configuration
@@ -41,6 +45,11 @@ API_KEYS = {
 API_KEY_NAME = "X-API-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
+# CORS Configuration - restrict in production
+ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080").split(",")
+if os.getenv("ENVIRONMENT") == "development":
+    ALLOWED_ORIGINS.append("*")  # Allow all in development only
+
 # =============================================================================
 # FastAPI App
 # =============================================================================
@@ -53,13 +62,13 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS middleware
+# CORS middleware - configured per environment
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict in production
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
 
 # =============================================================================
