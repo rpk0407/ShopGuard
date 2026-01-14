@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Callable
 from datetime import datetime
 from enum import Enum
+from loguru import logger
 
 
 class StrategyState(Enum):
@@ -111,6 +112,26 @@ class Strategy(ABC):
     @property
     def symbols(self) -> List[str]:
         return self.config.symbols
+
+    def log(self, message: str, level: str = "info"):
+        """
+        Log a message from the strategy.
+
+        Args:
+            message: Message to log
+            level: Log level (debug, info, warning, error)
+        """
+        prefix = f"[{self.name}] "
+        if level == "debug":
+            logger.debug(prefix + message)
+        elif level == "info":
+            logger.info(prefix + message)
+        elif level == "warning":
+            logger.warning(prefix + message)
+        elif level == "error":
+            logger.error(prefix + message)
+        else:
+            logger.info(prefix + message)
 
     def initialize(self, context: StrategyContext):
         """Initialize strategy. Override for custom initialization."""
